@@ -1,15 +1,28 @@
 # SMB - Smart Battery Module (Laptop Battery Pack) Info
 
+Prints SBM controller info
+
+Based on https://github.com/PowerCartel/PackProbe from Power Cartel http://powercartel.com/projects/packprobe/.
+
+Needs SoftI2CMaster library for I2C / SMBus / https://github.com/felias-fogg/SoftI2CMaster/archive/master.zip
+
+## Identifying the right connection
+After startup, the program scans for a connected I2C device.
+Just try different pin combinations until led stops blinking and "Found I2C device attached at address: 0x0B" is printed.
+After connecting full data is printed. 
+Dynamic values is checked every 3 seconds and printed if changed.
+
+Tested with bq20z70, bq20z451, bq2084, bq80201DBT, bq40z50.
+
+## German Documentation
 Gibt die Daten des SMB Controllers aus.
-
 Basiert auf https://github.com/PowerCartel/PackProbe von Power Cartel http://powercartel.com/projects/packprobe/. Hier gibt es auch weitere wertvolle Informationen.
-
 Benötigt SoftI2CMaster Library für I2C / SMBus / https://github.com/felias-fogg/SoftI2CMaster/archive/master.zip
 
 ## Finden der Anschlüsse.
 Nach dem Booten sucht das Programm nach einem angeschlossenen I2C Device.
 Man kann also alle möglichen Pinkombinationen von Clock und Data am Battery Pack ausprobieren.
-Bei der Richtigen hört das Blinken der Led auf und es kommt sofort die Ausgabe "Found I2C device attached at address: ox0B" und direkt danach werden die Daten ausgegeben.
+Bei der Richtigen hört das Blinken der Led auf und es kommt sofort die Ausgabe "Found I2C device attached at address: 0x0B" und direkt danach werden die Daten ausgegeben.
 
 Bei den Laptop Battery Packs war Plus und Masse immer außen.
 Wenn mehr als 5 Kontakte vorhanden waren, waren sie wie folgt belegt:
@@ -29,66 +42,84 @@ Einen Schaltplan zu den Batterie Modulen gibt es im Datenblatt zum TI bq29311 au
 
 ![Breadboard](https://github.com/ArminJo/Smart-Battery-Module-Info_For_Arduino/blob/master/img/Breadboard.jpg)
 
-###Beispieloutput:
+###Sample output:
+Sample outputs can be found in folder extras.
+
+```
+START ../src/SBMInfo.cpp
+Version 1.1 from  Jul 25 2018
 I2C initalized sucessfully
 Found attached I2C device at 0xB
 
 *** STATIC INFO ***
-```
 Chemistry: LION
-Manufacturer Name: DP
-Manufacturer Data:          K24005SDI   
-Device Name: bq20z451
-Serial Number: 11518
-Manufacture Date (YYYY-MM-DD): 2009-8-27
-Design Capacity (mAh): 5450
-Design Voltage: 10.950
-Specification Info: 49
-Cycle Count: 255
-Max Error of charge calculation (%): 1
-RemainingTimeAlarm (min): 10
-Remaining Capacity Alarm: 300
-Battery Mode (BIN): 0b110000000000001
-- Internal Charge Controller Supported
+Manufacturer Name: GW
+Manufacturer Data: †A;0ÿ  È ¬& - 0x86 41 3B 30 FF 1E 0 11 0 C8 0 AC 26 
+Device Name:  DELL 0
+Serial Number: 46
+Manufacture Date (YYYY-MM-DD): 2012-9-12
+Design Capacity: 6600 mAh
+Design Voltage: 11.100 V
+Charging Current: 4100 mA
+Charging Voltage: 12.600 V
+Specification Info: 33
+Cycle Count: 39
+Max Error of charge calculation (%): 8
+RemainingTimeAlarm: 10 min
+Remaining Capacity Alarm: 660 mAh
+Battery Mode (BIN): 0b110000000000000
 - Battery OK
 - Disable AlarmWarning broadcast to Host and Smart Battery Charger
 - Disable broadcasts of ChargingVoltage and ChargingCurrent to Smart Battery Charger
+Pack Status (BIN): 0b1000011010010000
 
 *** MANUFACTURER INFO ***
-ManufacturerAccess: 304 / 0x130
-Device Type: 1105 / 0x451
-Hardware Version: 0xA6
-Firmware Version: 0.3
-Manufacturer Status (BIN): 0b10001111
-- FET Status 2
-- State: 0b1111
-Battery Pack removed
+Device Type: 2084 / 0x824
+Controller IC identified by device type: bq2084
+End of Discharge Voltage Level: 9.900 V
 
-*** TEST INFO ***
-Average Current (mA): 1
-AtRateTimeToFull: 65535
-AtRateTimeToEmpty: 65535
-AtRateOK: 1
+Firmware Version: 1.50
+Manufacturer Status (BIN): 0b0
+- FET Status 0
+- State: 0b0
+
+*** RATE TEST INFO ***
+Setting AT rate to 100 mAh
+TimeToFull at rate: 265 min
+Setting AT rate to -100 mAh
+TimeToEmpty at rate: 3061 min
+Can be delivered for 10 seconds at rate: 1
 
 *** DYNAMIC INFO ***
-Full Charge Capacity (mAh): 2845
-Remaining Capacity (mAh): 2720
-Relative Charge(%): 96
-Absolute Charge(%): 50
-Minutes remaining for full charge: 7500
-Battery Status (BIN): 0b100100011100000
-- TERMINATE_CHARGE_ALARM
-- TERMINATE_DISCHARGE_ALARM
+Full Charge Capacity: 5545 mAh
+Remaining Capacity: 5102 mAh
+Relative Charge(%): 92
+Absolute Charge(%): 77
+Minutes remaining until empty: 2915 min
+Average minutes remaining until empty: 2943 min
+Minutes remaining for full charge: Battery not beeing (dis)charged
+Battery Status (BIN): 0b11000000
 - Initialized
 - Discharging
-- Fully Charged
-Voltage: 12.253
-Current (mA): 0
-Temperature (C): 24.85
-State of Health: 4084
-Cell 1 Voltage: 4.084
-Cell 2 Voltage: 4.085
-Cell 3 Voltage: 4.084
+Voltage: 12.212 V
+Current: -105 mA
+Average Current of last minute: -104 mA
+Temperature: 25.95 C
+
+*** DYNAMIC NON STANDARD INFO ***
+Cell 1 Voltage: 4.074 V
+Cell 2 Voltage: 4.070 V
+Cell 3 Voltage: 4.068 V
+Cell 4 Voltage: 0.000 V
+State of Health: 0
 
 *** CHANGED VALUES ***
+Remaining Capacity: 5101 mAh
+Minutes remaining until empty: 2914 min
+Average minutes remaining until empty: 2942 min
+Average minutes remaining until empty: 2914 min
+Voltage: 12.209 V
+Remaining Capacity: 5099 mAh
+Minutes remaining until empty: 2913 min
+Average minutes remaining until empty: 2913 min
 ```

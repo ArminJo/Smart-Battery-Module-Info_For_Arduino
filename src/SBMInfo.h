@@ -12,49 +12,56 @@
 #define SBM_DEVICE_ADDRESS 0x0B
 
 // Standard and common non-standard Smart Battery commands
-#define MANUFACTURER_ACCESS      0x00 // Manufacturer specific values
-#define REMAINING_CAPACITY_ALARM  0x01
-#define REMAINING_TIME_ALARM   	0x02
+#define MANUFACTURER_ACCESS      0x00 // r/w Manufacturer specific values
+#define REMAINING_CAPACITY_ALARM  0x01 // r/w
+#define REMAINING_TIME_ALARM   	0x02 // r/w
 
-#define BATTERY_MODE            0x03
-#define AtRate            		0x04
-#define AtRateTimeToFull 		0x05
-#define AtRateTimeToEmpty 		0x06
-#define AtRateOK          		0x07
+#define BATTERY_MODE            0x03 // r/w
+
+#define AtRate            		0x04 // r/w
+#define AtRateTimeToFull 		0x05 // r
+#define AtRateTimeToEmpty 		0x06 // r
+#define AtRateOK          		0x07 // r
 
 #define TEMPERATURE             0x08
 #define VOLTAGE                 0x09
 #define CURRENT                 0x0A
 #define AverageCurrent        	0x0B // of last minute
-#define MAX_ERROR          		0x0C // of state of charge calculation -Byte
+#define MAX_ERROR          		0x0C // Byte - of state of charge calculation
 
-#define RELATIVE_SOC            0x0D // StateOfCharge -Byte
-#define ABSOLUTE_SOC            0x0E // -Byte
+#define RELATIVE_SOC            0x0D // Byte - StateOfCharge
+#define ABSOLUTE_SOC            0x0E // Byte
 #define REMAINING_CAPACITY      0x0F
 #define FULL_CHARGE_CAPACITY    0x10
 #define RUN_TIME_TO_EMPTY     	0x11
 #define AVERAGE_TIME_TO_EMPTY  	0x12
 #define TIME_TO_FULL            0x13
-#define CHARGING_CURRENT        0x14
-#define CHARGING_VOLTAGE        0x15
-#define BATTERY_STATUS          0x16
+#define CHARGING_CURRENT        0x14  // r/w ?
+#define CHARGING_VOLTAGE        0x15  // r/w ?
+#define BATTERY_STATUS          0x16  // r/w ?
 #define CYCLE_COUNT             0x17
 #define DESIGN_CAPACITY         0x18
 #define DESIGN_VOLTAGE          0x19
 #define SPEC_INFO               0x1A
 #define MFG_DATE                0x1B
 #define SERIAL_NUM              0x1C
+#define RESERVED_1              0x1D - 0x1F
 #define MFG_NAME                0x20   // String
 #define DEV_NAME                0x21   // String
 #define CELL_CHEM               0x22   // String
-#define MFG_DATA                0x23   // String
+#define MANUFACTURER_DATA       0x23   // Data
+#define RESERVED_2              0x25 - 0x2E
 
-#define CELL4_VOLTAGE           0x3C   // Individual cell voltages don't work on Lenovo and Dell Packs
-#define CELL3_VOLTAGE           0x3D
-#define CELL2_VOLTAGE           0x3E
-#define CELL1_VOLTAGE           0x3F
+#define PACK_STATUS             0x2F   // r/w Word - OptionalMfgFunction5
 
-#define STATE_OF_HEALTH 		0x4F // in % -Byte
+#define RESERVED_3              0x30 - 0x3B
+
+#define CELL4_VOLTAGE           0x3C   // r/w Word - OptionalMfgFunction4 - Individual cell voltages don't work on Lenovo and Dell Packs
+#define CELL3_VOLTAGE           0x3D   // r/w Word - OptionalMfgFunction3
+#define CELL2_VOLTAGE           0x3E   // r/w Word - OptionalMfgFunction2
+#define CELL1_VOLTAGE           0x3F   // r/w Word - OptionalMfgFunction1
+
+#define STATE_OF_HEALTH 		0x4F   // in % Byte - = CELL1_VOLTAGE for bq2085
 
 /*
  * Bits of BatteryMode
@@ -65,6 +72,8 @@
 #define ALARM_MODE					0x2000
 #define CHARGER_MODE				0x4000
 #define CAPACITY_MODE				0x8000
+const char StringCapacityModeCurrent[] = " mAh";
+const char StringCapacityModePower[] = "0 mWh"; // 10mWh
 
 /*
  * Bits of BatteryStatus
@@ -84,19 +93,21 @@
 #define FULLY_DISCHARGED 	0x0010
 
 struct SBMFunctionDescriptionStruct {
-	uint8_t FunctionCode;
-	const char * Description;
-	uint16_t lastValue;
-	void (*ValueFormatter)(struct SBMFunctionDescriptionStruct * aDescription, uint16_t aValueToFormat);
+    uint8_t FunctionCode;
+    const char * Description;
+    void (*ValueFormatter)(struct SBMFunctionDescriptionStruct * aDescription, uint16_t aValueToFormat);
+    uint16_t lastValue;
 };
 
 /*
  * TI few ManufacturerAccess Commands
  */
-#define BQ20Z70_Device_Type				0x0001
-#define BQ20Z70_Firmware_Version		0x0002
+#define TI_Device_Type             0x0001
+#define TI_Firmware_Version        0x0002
 
-#define BQ20Z70_Hardware_Version		0x0003
+#define BQ20Z70_Hardware_Version        0x0003
+#define BQ40Z50_Hardware_Version        0x0003
+
 #define BQ2084_EDV_level				0x0003
 
 #define BQ20Z70_Manufacturer_Status		0x0006

@@ -25,11 +25,4 @@
 		<nature>org.eclipse.cdt.managedbuilder.core.ScannerConfigNature</nature>
 		<nature>de.innot.avreclipse.core.avrnature</nature>
 	</natures>
-	<linkedResources>
-		<link>
-			<name>src/lib/SoftI2CMaster</name>
-			<type>2</type>
-			<location>E:/WORKSPACE_ARDUINO/lib/SoftI2CMaster</location>
-		</link>
-	</linkedResources>
 </projectDescription>

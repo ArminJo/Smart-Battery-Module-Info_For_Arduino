@@ -44,7 +44,7 @@
 									<listOptionValue builtIn="false" value="E:/Elektro/arduino/hardware/arduino/avr/variants/standard"/>
 									<listOptionValue builtIn="false" value="E:/Elektro/arduino/hardware/arduino/avr/cores/arduino"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/src}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/src/lib/SoftI2CMaster}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/src/lib}&quot;"/>
 								</option>
 								<option id="de.innot.avreclipse.cppcompiler.option.def.1867196469" name="Define Syms (-D)" superClass="de.innot.avreclipse.cppcompiler.option.def"/>
 								<option id="de.innot.avreclipse.cppcompiler.option.optimize.other.247153119" name="Other Optimization Flags" superClass="de.innot.avreclipse.cppcompiler.option.optimize.other" value="-ffunction-sections -fdata-sections" valueType="string"/>
@@ -96,4 +96,5 @@
 			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId="de.innot.avreclipse.core.AVRGCCManagedMakePerProjectProfileCPP"/>
 		</scannerConfigBuildInfo>
 	</storageModule>
+	<storageModule moduleId="org.eclipse.cdt.make.core.buildtargets"/>
 </cproject>
