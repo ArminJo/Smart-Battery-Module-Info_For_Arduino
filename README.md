@@ -14,6 +14,10 @@ Dynamic values is checked every 3 seconds and printed if changed.
 
 Tested with bq20z70, bq20z451, bq2084, bq80201DBT, bq40z50.
 
+![My setup](https://github.com/ArminJo/Smart-Battery-Module-Info_For_Arduino/blob/master/extras/Breadboard.jpg)
+
+![My setup](https://github.com/ArminJo/Smart-Battery-Module-Info_For_Arduino/blob/master/extras/With_LCD.jpg)
+
 ## German Documentation
 Gibt die Daten des SMB Controllers aus.
 Basiert auf https://github.com/PowerCartel/PackProbe von Power Cartel http://powercartel.com/projects/packprobe/. Hier gibt es auch weitere wertvolle Informationen.
@@ -47,7 +51,7 @@ Sample outputs can be found in folder extras.
 
 ```
 START ../src/SBMInfo.cpp
-Version 1.1 from  Jul 25 2018
+Version 2.1 from Oct 27 2018
 I2C initalized sucessfully
 Found attached I2C device at 0xB
 
@@ -84,9 +88,9 @@ Manufacturer Status (BIN): 0b0
 - State: 0b0
 
 *** RATE TEST INFO ***
-Setting AT rate to 100 mAh
+Setting AT rate to 100 mA
 TimeToFull at rate: 265 min
-Setting AT rate to -100 mAh
+Setting AT rate to -100 mA
 TimeToEmpty at rate: 3061 min
 Can be delivered for 10 seconds at rate: 1
 

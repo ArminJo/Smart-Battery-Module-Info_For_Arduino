@@ -72,8 +72,8 @@
 #define ALARM_MODE					0x2000
 #define CHARGER_MODE				0x4000
 #define CAPACITY_MODE				0x8000
-const char StringCapacityModeCurrent[] = " mAh";
-const char StringCapacityModePower[] = "0 mWh"; // 10mWh
+const char StringCapacityModeCurrent[] = " mA";
+const char StringCapacityModePower[] = "0 mW"; // 10mWh
 
 /*
  * Bits of BatteryStatus
@@ -96,6 +96,7 @@ struct SBMFunctionDescriptionStruct {
     uint8_t FunctionCode;
     const char * Description;
     void (*ValueFormatter)(struct SBMFunctionDescriptionStruct * aDescription, uint16_t aValueToFormat);
+    const char * DescriptionLCD; // if set output value also on LCD
     uint16_t lastValue;
 };
 
