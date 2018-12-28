@@ -1,10 +1,15 @@
 # SMB - Smart Battery Module (Laptop Battery Pack) Info
 
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+
 Prints SBM controller info
 
 Based on https://github.com/PowerCartel/PackProbe from Power Cartel http://powercartel.com/projects/packprobe/.
 
-Needs SoftI2CMaster library for I2C / SMBus / https://github.com/felias-fogg/SoftI2CMaster/archive/master.zip
+## Compile with the Arduino IDE
+First you need to install "SoftwareWire" library with Sketch -> Include Library -> Manage Librarys.... Use "SoftwareWire" as filter string.
+
+Then download and extract the repository. In the Arduino IDE open the sketch with File -> Open... and select the src/SBMInfo folder. 
 
 ## Identifying the right connection
 After startup, the program scans for a connected I2C device.
@@ -44,7 +49,7 @@ Tested with bq20z70, bq20z451, bq2084, bq80201DBT, bq40z50.
 
 Einen Schaltplan zu den Batterie Modulen gibt es im Datenblatt zum TI bq29311 auf Seite 9.
 
-![Breadboard](https://github.com/ArminJo/Smart-Battery-Module-Info_For_Arduino/blob/master/img/Breadboard.jpg)
+![Breadboard](https://github.com/ArminJo/Smart-Battery-Module-Info_For_Arduino/blob/master/extras/Breadboard.jpg)
 
 ###Sample output:
 Sample outputs can be found in folder extras.
