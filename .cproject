@@ -51,6 +51,7 @@
 								</option>
 								<option id="de.innot.avreclipse.cppcompiler.option.def.1867196469" name="Define Syms (-D)" superClass="de.innot.avreclipse.cppcompiler.option.def" useByScannerDiscovery="false"/>
 								<option id="de.innot.avreclipse.cppcompiler.option.otherflags.1482621375" name="Other flags" superClass="de.innot.avreclipse.cppcompiler.option.otherflags" useByScannerDiscovery="false" value="-x c++" valueType="string"/>
+								<option id="de.innot.avreclipse.cppcompiler.option.verbose.485998240" name="Verbose (-v)" superClass="de.innot.avreclipse.cppcompiler.option.verbose" useByScannerDiscovery="false" value="false" valueType="boolean"/>
 								<inputType id="de.innot.avreclipse.cppcompiler.input.1320840307" superClass="de.innot.avreclipse.cppcompiler.input"/>
 							</tool>
 							<tool id="de.innot.avreclipse.tool.linker.winavr.app.release.1098932434" name="AVR C Linker" superClass="de.innot.avreclipse.tool.linker.winavr.app.release"/>
