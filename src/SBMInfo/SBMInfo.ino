@@ -18,20 +18,18 @@
 #include <Arduino.h>
 
 #include "SBMInfo.h"
-#include <SoftwareWire.h>
+#include <Wire.h>
 #include <LiquidCrystal.h>
 
 #define LCD_COLUMNS 20
 #define LCD_ROWS 4
 
-#define VERSION "3.0"
+#define VERSION "3.1"
 
+//#define DEBUG
 /*
- *  Corresponds to A4/A5 - the hardware I2C pins on Arduino
+ *  Uses A4/A5 - the hardware I2C pins on Arduino
  */
-#define SDA_PIN A4
-#define SCL_PIN A5
-SoftwareWire SBMConnection(SDA_PIN, SCL_PIN);
 
 #define DATA_BUFFER_LENGTH 32
 uint8_t sI2CDataBuffer[DATA_BUFFER_LENGTH];
@@ -137,7 +135,6 @@ const char Cell_3_Voltage[] PROGMEM = "Cell 3 Voltage: ";
 const char Cell_4_Voltage[] PROGMEM = "Cell 4 Voltage: ";
 const char State_of_Health[] PROGMEM = "State of Health: ";
 
-
 int nonStandardInfoSupportedByPack = 0; // 0 not initialized, 1 supported, > 1 not supported
 struct SBMFunctionDescriptionStruct sSBMNonStandardFunctionDescriptionArray[] = { {
 CELL1_VOLTAGE, Cell_1_Voltage, &printVoltage }, {
@@ -177,8 +174,8 @@ void setup() {
 // initialize the digital pin as an output.
     pinMode(LED_PIN, OUTPUT);
 
-    // Shutdown SPI and TWI, timers, and ADC
-    PRR = (1 << PRSPI) | (1 << PRTWI) | (1 << PRTIM1) | (1 << PRTIM2) | (1 << PRADC);
+    // Shutdown SPI, timers, and ADC
+    PRR = (1 << PRSPI) | (1 << PRTIM1) | (1 << PRTIM2) | (1 << PRADC);
     // Disable  digital input on all unused ADC channel pins to reduce power consumption
     DIDR0 = ADC0D | ADC1D | ADC2D | ADC3D;
 
@@ -197,8 +194,8 @@ void setup() {
      * The workaround to set __FILE__ with #line __LINE__ "LightToServo.cpp" disables source output including in .lss file (-S option)
      */
 
-    SBMConnection.begin();
-    SBMConnection.setClock(25000);
+    Wire.begin();
+    Wire.setClock(32000); // lowest rate available is 31000
 
     /*
      * Check for I2C device and blink until device attached
@@ -260,11 +257,12 @@ void TogglePin(uint8_t aPinNr) {
 }
 
 bool checkForAttachedI2CDevice(uint8_t aStandardDeviceAddress) {
-    SBMConnection.beginTransmission(aStandardDeviceAddress);
-    uint8_t tOK = SBMConnection.endTransmission();
-    if (tOK == SOFTWAREWIRE_NO_ERROR) {
+    Wire.beginTransmission(aStandardDeviceAddress);
+    uint8_t tOK = Wire.endTransmission();
+    if (tOK == 0) {
         Serial.print(F("Found attached I2C device at 0x"));
         Serial.println(aStandardDeviceAddress, HEX);
+        Serial.flush();
         sI2CDeviceAddress = SBM_DEVICE_ADDRESS;
         return true;
     } else {
@@ -278,9 +276,9 @@ int sScanCount = 0;
 int scanForAttachedI2CDevice(void) {
     int tFoundAdress = -1;
     for (uint8_t i = 0; i < 127; i++) {
-        SBMConnection.beginTransmission(i);
-        uint8_t tOK = SBMConnection.endTransmission(true);
-        if (tOK == SOFTWAREWIRE_NO_ERROR) {
+        Wire.beginTransmission(i);
+        uint8_t tOK = Wire.endTransmission(true);
+        if (tOK == 0) {
             Serial.print(F("Found I2C device attached at address: 0x"));
             Serial.println(i, HEX);
             tFoundAdress = i;
@@ -304,24 +302,21 @@ int scanForAttachedI2CDevice(void) {
 }
 
 int readWord(uint8_t aFunction) {
-    cli();
-    SBMConnection.beginTransmission(sI2CDeviceAddress);
-    SBMConnection.write(aFunction);
-    SBMConnection.requestFrom(sI2CDeviceAddress, (uint8_t) 2);
-    sei();
-    uint8_t tLSB = SBMConnection.read();
-    uint8_t tMSB = SBMConnection.read();
+    Wire.beginTransmission(sI2CDeviceAddress);
+    Wire.write(aFunction);
+    Wire.endTransmission();
+    Wire.requestFrom(sI2CDeviceAddress, (uint8_t) 2);
+    uint8_t tLSB = Wire.read();
+    uint8_t tMSB = Wire.read();
     return (int) tLSB | (((int) tMSB) << 8);
 }
 
 void writeWord(uint8_t aFunction, uint16_t aValue) {
-    cli();
-    SBMConnection.beginTransmission(sI2CDeviceAddress);
-    SBMConnection.write(aFunction);
-    SBMConnection.write(aValue & 0xFF);
-    SBMConnection.write((aValue >> 8) & 0xFF);
-    SBMConnection.endTransmission();
-    sei();
+    Wire.beginTransmission(sI2CDeviceAddress);
+    Wire.write(aFunction);
+    Wire.write(aValue & 0xFF);
+    Wire.write((aValue >> 8) & 0xFF);
+    Wire.endTransmission();
 }
 
 int readWordFromManufacturerAccess(uint16_t aCommand) {
@@ -330,24 +325,35 @@ int readWordFromManufacturerAccess(uint16_t aCommand) {
 }
 
 uint8_t readBlock(uint8_t aCommand, uint8_t* aDataBufferPtr, uint8_t aDataBufferLength) {
-    cli();
-    SBMConnection.beginTransmission(sI2CDeviceAddress);
-    SBMConnection.write(aCommand);
-    SBMConnection.requestFrom(sI2CDeviceAddress, (uint8_t) 1);
+    Wire.beginTransmission(sI2CDeviceAddress);
+    Wire.write(aCommand);
+    Wire.endTransmission();
+    Wire.requestFrom(sI2CDeviceAddress, (uint8_t) 1);
+
 // First read length of data
-    uint8_t tLengthOfData = SBMConnection.read();
+    uint8_t tLengthOfData = Wire.read();
+
+#ifdef DEBUG
+    Serial.print(F("\ntLengthOfData="));
+    Serial.println(tLengthOfData);
+#endif
 
     tLengthOfData++; // since the length is read again
     if (tLengthOfData > aDataBufferLength) {
         tLengthOfData = aDataBufferLength;
     }
-    SBMConnection.requestFrom(sI2CDeviceAddress, tLengthOfData, false);
 
-    SBMConnection.read();
+#ifdef DEBUG
+    uint8_t tNumberOfDataReceived = Wire.requestFrom(sI2CDeviceAddress, tLengthOfData);
+    Serial.print(F("tNumberOfDataReceived="));
+    Serial.println(tNumberOfDataReceived);
+#else
+    Wire.requestFrom(sI2CDeviceAddress, tLengthOfData);
+#endif
+
+    Wire.read();
     tLengthOfData--; // since the length must be skipped
-    SBMConnection.readBytes(aDataBufferPtr, tLengthOfData);
-
-    sei();
+    Wire.readBytes(aDataBufferPtr, tLengthOfData);
     return tLengthOfData;
 }
 

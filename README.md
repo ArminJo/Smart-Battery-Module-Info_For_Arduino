@@ -7,9 +7,7 @@ Prints SBM controller info
 Based on https://github.com/PowerCartel/PackProbe from Power Cartel http://powercartel.com/projects/packprobe/.
 
 ## Compile with the Arduino IDE
-First you need to install "SoftwareWire" library with Sketch -> Include Library -> Manage Librarys.... Use "SoftwareWire" as filter string.
-
-Then download and extract the repository. In the Arduino IDE open the sketch with File -> Open... and select the src/SBMInfo folder. 
+Download and extract the repository. In the Arduino IDE open the sketch with File -> Open... and select the src/SBMInfo folder. 
 
 ## Identifying the right connection
 After startup, the program scans for a connected I2C device.
