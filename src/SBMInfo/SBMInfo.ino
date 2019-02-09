@@ -65,9 +65,6 @@ void TogglePin(uint8_t aPinNr);
 int readWord(uint8_t aFunction);
 void writeWord(uint8_t aFunction, uint16_t aValue);
 
-// Pin 13 has an LED connected on most Arduino boards.
-const int LED_PIN = 13;
-
 /*
  * Command definitions
  */
@@ -172,7 +169,7 @@ BQ20Z70_PackVoltage, Pack_Voltage, &printVoltage } };
 
 void setup() {
 // initialize the digital pin as an output.
-    pinMode(LED_PIN, OUTPUT);
+    pinMode(LED_BUILTIN, OUTPUT);
 
     // Shutdown SPI, timers, and ADC
     PRR = (1 << PRSPI) | (1 << PRTIM1) | (1 << PRTIM2) | (1 << PRADC);
@@ -205,7 +202,7 @@ void setup() {
         do {
             tDeviceAttached = scanForAttachedI2CDevice();
             delay(500);
-            TogglePin(LED_PIN);
+            TogglePin(LED_BUILTIN);
         } while (tDeviceAttached < 0);
     }
 
@@ -213,7 +210,7 @@ void setup() {
     do {
         tVoltage = readWord(VOLTAGE);
         delay(500);
-        TogglePin(LED_PIN);
+        TogglePin(LED_BUILTIN);
     } while (tVoltage == 0xFFFF);
 
     Serial.println(F("\r\n*** STATIC INFO ***"));
