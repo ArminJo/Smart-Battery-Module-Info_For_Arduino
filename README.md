@@ -1,5 +1,4 @@
 # SMB - Smart Battery Module (Laptop Battery Pack) Info
-
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
 Prints SBM controller info
@@ -130,3 +129,8 @@ Remaining Capacity: 5099 mAh
 Minutes remaining until empty: 2913 min
 Average minutes remaining until empty: 2913 min
 ```
+
+
+<a href="https://github.com/ArminJo">
+  <img src="https://hitcounter.pythonanywhere.com/count/tag.svg?url=https%3A%2F%2Fgithub.com%2FArminJo%2FSmart-Battery-Module-Info_For_Arduino" alt="Hits">
+</a>

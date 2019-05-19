@@ -573,19 +573,19 @@ void printBatteryStatus(struct SBMFunctionDescriptionStruct * aDescription, uint
     /*
      * Error Bits
      */
-    if (aStatus & OVER_CHARGED_ALARM) {
+    if (aStatus & OVER_CHARGED_ALARM__FLAG) {
         Serial.println(F("- OVER_CHARGED_ALARM"));
     }
-    if (aStatus & TERMINATE_CHARGE_ALARM) {
+    if (aStatus & TERMINATE_CHARGE_ALARM_FLAG) {
         Serial.println(F("- TERMINATE_CHARGE_ALARM"));
     }
-    if (aStatus & OVER_TEMP_ALARM) {
+    if (aStatus & OVER_TEMP_ALARM_FLAG) {
         Serial.println(F("- OVER_TEMP_ALARM"));
     }
-    if (aStatus & TERMINATE_DISCHARGE_ALARM) {
+    if (aStatus & TERMINATE_DISCHARGE_ALARM_FLAG) {
         Serial.println(F("- TERMINATE_DISCHARGE_ALARM"));
     }
-    if (aStatus & REMAINING_CAPACITY_ALARM) {
+    if (aStatus & REMAINING_CAPACITY_ALARM_FLAG) {
         Serial.println(F("- REMAINING_CAPACITY_ALARM"));
     }
     if (aStatus & REMAINING_TIME_ALARM_FLAG) {
