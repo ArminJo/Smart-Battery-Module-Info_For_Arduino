@@ -64,6 +64,8 @@ int scanForAttachedI2CDevice(void);
 void TogglePin(uint8_t aPinNr);
 int readWord(uint8_t aFunction);
 void writeWord(uint8_t aFunction, uint16_t aValue);
+int readWordFromManufacturerAccess(uint16_t aCommand);
+uint8_t readBlock(uint8_t aCommand, uint8_t* aDataBufferPtr, uint8_t aDataBufferLength);
 
 /*
  * Command definitions
@@ -479,11 +481,11 @@ void printVoltage(struct SBMFunctionDescriptionStruct * aDescription, uint16_t a
     if (aVoltage < aDescription->lastValue - 1 || aDescription->lastValue + 1 < aVoltage) {
         Serial.print((const __FlashStringHelper *) aDescription->Description);
         Serial.print((float) aVoltage / 1000, 3);
-        Serial.println(" Volt");
+        Serial.println(" volt");
         if (aDescription->DescriptionLCD != NULL) {
             myLCD.setCursor(0, 0);
             myLCD.print((float) aVoltage / 1000, 3);
-            myLCD.print(" Volt");
+            myLCD.print(" volt");
         }
     }
 }

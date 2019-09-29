@@ -1,5 +1,6 @@
 # SMB - Smart Battery Module (Laptop Battery Pack) Info
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![Hit Counter](https://hitcounter.pythonanywhere.com/count/tag.svg?url=https%3A%2F%2Fgithub.com%2FArminJo%2FSmart-Battery-Module-Info_For_Arduino)](https://github.com/brentvollebregt/hit-counter)
 
 Prints SBM controller info
 
@@ -36,7 +37,7 @@ Wenn mehr als 5 Kontakte vorhanden waren, waren sie wie folgt belegt:
 - Ein Enable (nur im Laptop mit Masse verbunden) und eine Signal Anschluss (nur im Battery Pack mit Masse verbunden). z.B. + | + | Clock | Data | Signal | Enable | Thermo | - | -
 
 Die Clock und Data Eingänge waren bei meinen Packs die Anschlüsse mit einem Widerstand von ca. 300 k bis 1 MOhm nach Masse.
-Der Thermo Sensor Anschluss war uneinheitlich, mal nicht messabar beschaltet, mal 1 MOhm, mal 1,6 Volt, mal 10 kOhm nach Masse.
+Der Thermo Sensor Anschluss war uneinheitlich, mal nicht messbar beschaltet, mal 1 MOhm, mal 1,6 Volt, mal 10 kOhm nach Masse.
 
 Zur Verbindung mit den Kontakten habe ich normales 1,5 qmm Kupferkabel aus der Hausinstallation genommen, dessen eines Ende ich mit einem Hammer etwas plattgeklopft hab. Stecknadeln oder Breadboard Wires gehen auch.
 
