@@ -24,7 +24,7 @@
 #define LCD_COLUMNS 20
 #define LCD_ROWS 4
 
-#define VERSION "3.1"
+#define VERSION_EXAMPLE "3.1"
 
 //#define DEBUG
 /*
@@ -52,7 +52,7 @@ void printCurrent(struct SBMFunctionDescriptionStruct * aDescription, uint16_t a
 void printTemperature(struct SBMFunctionDescriptionStruct * aDescription, uint16_t aTemperature);
 
 void printFunctionDescriptionArray(struct SBMFunctionDescriptionStruct * aSBMFunctionDescription, uint8_t aLengthOfArray,
-bool aOnlyPrintIfValueChanged);
+        bool aOnlyPrintIfValueChanged);
 void printSMBStaticInfo(void);
 void printSMBManufacturerInfo(void);
 void printSMBNonStandardInfo(bool aOnlyPrintIfValueChanged);
@@ -170,23 +170,22 @@ BQ20Z70_PackVoltage, Pack_Voltage, &printVoltage } };
  */
 
 void setup() {
-// initialize the digital pin as an output.
     pinMode(LED_BUILTIN, OUTPUT);
+    Serial.begin(115200);
+#if defined(__AVR_ATmega32U4__)
+    while (!Serial); //delay for Leonardo, but this loops forever for Maple Serial
+#endif
+    // Just to know which program is running on my Arduino
+    Serial.println(F("START " __FILE__ "\r\nVersion " VERSION_EXAMPLE " from " __DATE__));
 
     // Shutdown SPI, timers, and ADC
     PRR = (1 << PRSPI) | (1 << PRTIM1) | (1 << PRTIM2) | (1 << PRADC);
     // Disable  digital input on all unused ADC channel pins to reduce power consumption
     DIDR0 = ADC0D | ADC1D | ADC2D | ADC3D;
 
-    Serial.begin(115200);
-    while (!Serial) {
-        ; // wait for Leonardo enumeration, others continue immediately
-    }
-
     // set up the LCD's number of columns and rows:
     myLCD.begin(LCD_COLUMNS, LCD_ROWS);
-    Serial.println(F("START SBMInfo\r\nVersion " VERSION " from " __DATE__));
-    myLCD.print(F("SBMInfo " VERSION));
+    myLCD.print(F("SBMInfo " VERSION_EXAMPLE));
     myLCD.setCursor(0, 1);
     myLCD.print(F(__DATE__));
     /*
@@ -613,7 +612,7 @@ void printBatteryStatus(struct SBMFunctionDescriptionStruct * aDescription, uint
 }
 
 void printFunctionDescriptionArray(struct SBMFunctionDescriptionStruct * aSBMFunctionDescription, uint8_t aLengthOfArray,
-bool aOnlyPrintIfValueChanged) {
+        bool aOnlyPrintIfValueChanged) {
     for (uint8_t i = 0; i < aLengthOfArray; ++i) {
         readWordAndPrint(aSBMFunctionDescription, aOnlyPrintIfValueChanged);
         aSBMFunctionDescription++;
