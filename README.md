@@ -1,4 +1,5 @@
-# SMB - Smart Battery Module (Laptop Battery Pack) Info
+# [SMB](https://github.com/ArminJo/Smart-Battery-Module-Info_For_Arduino) - Smart Battery Module (Laptop Battery Pack) Info
+### Version 3.1
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Hit Counter](https://hitcounter.pythonanywhere.com/count/tag.svg?url=https%3A%2F%2Fgithub.com%2FArminJo%2FSmart-Battery-Module-Info_For_Arduino)](https://github.com/brentvollebregt/hit-counter)
 
@@ -10,12 +11,15 @@ Based on https://github.com/PowerCartel/PackProbe from Power Cartel http://power
 Download and extract the repository. In the Arduino IDE open the sketch with File -> Open... and select the src/SBMInfo folder. 
 
 ## Identifying the right connection
+Clock und Data connectors have often a resistance of 300 k to 1 MOhm to Ground.
 After startup, the program scans for a connected I2C device.
-Just try different pin combinations until led stops blinking and "Found I2C device attached at address: 0x0B" is printed.
-After connecting full data is printed. 
-Dynamic values is checked every 3 seconds and printed if changed.
+Just try different pin combinations until led stops blinking and `Found I2C device attached at address: 0x0B` is printed.
+After connecting`, full data is printed. 
+Dynamic values are checked every 3 seconds and printed if changed.
 
 Tested with bq20z70, bq20z451, bq2084, bq80201DBT, bq40z50.
+
+An example schematic for a SBM module can be found in the datasheet of TI bq29311 at page 9.
 
 ![My setup](https://github.com/ArminJo/Smart-Battery-Module-Info_For_Arduino/blob/master/extras/Breadboard.jpg)
 
@@ -24,20 +28,19 @@ Tested with bq20z70, bq20z451, bq2084, bq80201DBT, bq40z50.
 ## German Documentation
 Gibt die Daten des SMB Controllers aus.
 Basiert auf https://github.com/PowerCartel/PackProbe von Power Cartel http://powercartel.com/projects/packprobe/. Hier gibt es auch weitere wertvolle Informationen.
-Benötigt SoftI2CMaster Library für I2C / SMBus / https://github.com/felias-fogg/SoftI2CMaster/archive/master.zip
 
 ## Finden der Anschlüsse.
+Die Clock und Data Eingänge waren bei meinen Packs die Anschlüsse mit einem Widerstand von ca. 300 k bis 1 MOhm nach Masse.
 Nach dem Booten sucht das Programm nach einem angeschlossenen I2C Device.
 Man kann also alle möglichen Pinkombinationen von Clock und Data am Battery Pack ausprobieren.
-Bei der Richtigen hört das Blinken der Led auf und es kommt sofort die Ausgabe "Found I2C device attached at address: 0x0B" und direkt danach werden die Daten ausgegeben.
+Bei der Richtigen hört das Blinken der Led auf und es kommt sofort die Ausgabe `Found I2C device attached at address: 0x0B` und direkt danach werden die Daten ausgegeben.
 
 Bei den Laptop Battery Packs war Plus und Masse immer außen.
 Wenn mehr als 5 Kontakte vorhanden waren, waren sie wie folgt belegt:
 - Masse und Plus doppelt. z.B. + | + | Thermo | Data | Clock | - | -
 - Ein Enable (nur im Laptop mit Masse verbunden) und eine Signal Anschluss (nur im Battery Pack mit Masse verbunden). z.B. + | + | Clock | Data | Signal | Enable | Thermo | - | -
 
-Die Clock und Data Eingänge waren bei meinen Packs die Anschlüsse mit einem Widerstand von ca. 300 k bis 1 MOhm nach Masse.
-Der Thermo Sensor Anschluss war uneinheitlich, mal nicht messbar beschaltet, mal 1 MOhm, mal 1,6 Volt, mal 10 kOhm nach Masse.
+Der Thermo-Sensor Anschluss war uneinheitlich, mal nicht messbar beschaltet, mal 1 MOhm, mal 1,6 Volt, mal 10 kOhm nach Masse.
 
 Zur Verbindung mit den Kontakten habe ich normales 1,5 qmm Kupferkabel aus der Hausinstallation genommen, dessen eines Ende ich mit einem Hammer etwas plattgeklopft hab. Stecknadeln oder Breadboard Wires gehen auch.
 
@@ -46,8 +49,6 @@ Die Daten werden nur einmalig nach dem Reset ausgegeben, nur die veränderlichen 
 Tested with bq20z70, bq20z451, bq2084, bq80201DBT, bq40z50.
 
 Einen Schaltplan zu den Batterie Modulen gibt es im Datenblatt zum TI bq29311 auf Seite 9.
-
-![Breadboard](https://github.com/ArminJo/Smart-Battery-Module-Info_For_Arduino/blob/master/extras/Breadboard.jpg)
 
 ###Sample output:
 Sample outputs can be found in folder extras.
@@ -131,7 +132,4 @@ Minutes remaining until empty: 2913 min
 Average minutes remaining until empty: 2913 min
 ```
 
-
-<a href="https://github.com/ArminJo">
-  <img src="https://hitcounter.pythonanywhere.com/count/tag.svg?url=https%3A%2F%2Fgithub.com%2FArminJo%2FSmart-Battery-Module-Info_For_Arduino" alt="Hits">
-</a>
+#### If you find this library useful, please give it a star.
