@@ -2,8 +2,15 @@
  *  SBMInfo.ino
  *  Shows Smart Battery Info
  *
- *  Copyright (C) 2016  Armin Joachimsmeyer
+ *  Copyright (C) 2016-2020  Armin Joachimsmeyer
  *  armin.joachimsmeyer@gmail.com
+ *
+ *  https://github.com/ArminJo/Smart-Battery-Module-Info_For_Arduino
+ *
+ *  SBMInfo is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -24,7 +31,12 @@
 #define LCD_COLUMNS 20
 #define LCD_ROWS 4
 
-#define VERSION_EXAMPLE "3.1"
+#define VERSION_EXAMPLE "3.1.1"
+
+/*
+ * Version 3.1.1 - 3/2020
+ * - Better prints at scanning.
+ */
 
 //#define DEBUG
 /*
@@ -198,13 +210,15 @@ void setup() {
     /*
      * Check for I2C device and blink until device attached
      */
-    if (!checkForAttachedI2CDevice(SBM_DEVICE_ADDRESS)) {
-        int tDeviceAttached;
+    if (checkForAttachedI2CDevice(SBM_DEVICE_ADDRESS)) {
+        sI2CDeviceAddress = SBM_DEVICE_ADDRESS;
+    } else {
+        Serial.println(F("Start scanning for device at I2C bus"));
         do {
-            tDeviceAttached = scanForAttachedI2CDevice();
+            sI2CDeviceAddress = scanForAttachedI2CDevice();
             delay(500);
             TogglePin(LED_BUILTIN);
-        } while (tDeviceAttached < 0);
+        } while (sI2CDeviceAddress < 0);
     }
 
     uint16_t tVoltage;
@@ -256,22 +270,23 @@ void TogglePin(uint8_t aPinNr) {
 
 bool checkForAttachedI2CDevice(uint8_t aStandardDeviceAddress) {
     Wire.beginTransmission(aStandardDeviceAddress);
-    uint8_t tOK = Wire.endTransmission();
-    if (tOK == 0) {
+    uint8_t tRetCode = Wire.endTransmission();
+    if (tRetCode == 0) {
         Serial.print(F("Found attached I2C device at 0x"));
         Serial.println(aStandardDeviceAddress, HEX);
         Serial.flush();
-        sI2CDeviceAddress = SBM_DEVICE_ADDRESS;
         return true;
     } else {
         Serial.print(F("Transmission error code="));
-        Serial.println(tOK);
+        Serial.print(tRetCode);
+        Serial.print(F(" while looking for device at default address 0x"));
+        Serial.println(aStandardDeviceAddress, HEX);
         return false;
     }
 }
 
-int sScanCount = 0;
 int scanForAttachedI2CDevice(void) {
+    int sScanCount = 0;
     int tFoundAdress = -1;
     for (uint8_t i = 0; i < 127; i++) {
         Wire.beginTransmission(i);
@@ -286,7 +301,6 @@ int scanForAttachedI2CDevice(void) {
         Serial.print(F("Scan found no attached I2C device - "));
         Serial.println(sScanCount);
         myLCD.setCursor(0, 3);
-        // print the number of seconds since reset:
         myLCD.print("Scan for device ");
         myLCD.print(sScanCount);
         sScanCount++;
@@ -294,7 +308,6 @@ int scanForAttachedI2CDevice(void) {
         // clear LCD line
         myLCD.setCursor(0, 3);
         myLCD.print("                    ");
-        sI2CDeviceAddress = tFoundAdress;
     }
     return tFoundAdress;
 }
