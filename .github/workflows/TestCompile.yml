@@ -1,0 +1,25 @@
+# TestCompile.yml
+# Github workflow script to test compile all examples of an Arduino library repository.
+#
+# Copyright (C) 2020  Armin Joachimsmeyer
+# https://github.com/ArminJo/Github-Actions
+#
+# Before being able to push to my .github\workflows directories,
+# I had to create a new personal token with workflow enabled at https://github.com/settings/tokens
+
+# This is the name of the workflow, visible on GitHub UI.
+name: TestCompile
+on: push
+jobs:
+  build:
+    name: Test compiling examples for UNO
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Compile all examples
+        uses: ArminJo/arduino-test-compile@master
+        with:
+          libraries: LiquidCrystal
+
