@@ -8,6 +8,11 @@ Prints SBM controller info
 
 Based on https://github.com/PowerCartel/PackProbe from Power Cartel http://powercartel.com/projects/packprobe/.
 
+# Disclaimer
+**I do not know how to enter full access mode, clear permanent filure or unlock any controller IC.** Unfortunally according to most datasheets, you need an unlock key.
+See also this [article from 2011](https://media.blackhat.com/bh-us-11/Miller/BH_US_11_Miller_Battery_Firmware_Public_WP.pdf).
+Extract: *Macbook batteries ship with a default unseal password (0x36720414).  This was found by reverse engineering a Macbook battery update.  On Macbook batteries, the full access mode password is also hardcoded and default (0xffffffff).* 
+
 ## Compile with the Arduino IDE
 Download and extract the repository. In the Arduino IDE open the sketch with File -> Open... and select the src/SBMInfo folder. 
 
