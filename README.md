@@ -62,7 +62,7 @@ Sample outputs can be found in folder extras.
 ```
 START ../src/SBMInfo.cpp
 Version 2.1 from Oct 27 2018
-I2C initalized sucessfully
+I2C initalized successfully
 Found attached I2C device at 0xB
 
 *** STATIC INFO ***
