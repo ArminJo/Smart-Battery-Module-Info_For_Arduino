@@ -57,7 +57,7 @@
 
 #define RESERVED_3              0x30 - 0x3B
 
-#define CELL4_VOLTAGE           0x3C   // r/w Word - OptionalMfgFunction4 - Individual cell voltages don't work on Lenovo and Dell Packs
+#define CELL4_VOLTAGE           0x3C   // r/w Word - OptionalMfgFunction4 - Individual cell voltages don't work on Sony, Lenovo and Dell Packs
 #define CELL3_VOLTAGE           0x3D   // r/w Word - OptionalMfgFunction3
 #define CELL2_VOLTAGE           0x3E   // r/w Word - OptionalMfgFunction2
 #define CELL1_VOLTAGE           0x3F   // r/w Word - OptionalMfgFunction1
@@ -74,7 +74,7 @@
 #define CHARGER_MODE                0x4000
 #define CAPACITY_MODE               0x8000
 const char StringCapacityModeCurrent[] = " mA";
-const char StringCapacityModePower[] = "0mW"; // 10mWh
+const char StringCapacityModePower[] = "0 mW"; // 10 mWh
 
 /*
  * Bits of BatteryStatus
@@ -96,7 +96,7 @@ const char StringCapacityModePower[] = "0mW"; // 10mWh
 struct SBMFunctionDescriptionStruct {
     uint8_t FunctionCode;
     const char * Description;
-    void (*ValueFormatter)(struct SBMFunctionDescriptionStruct * aDescription, uint16_t aValueToFormat); // no println() at the end!
+    bool (*ValueFormatter)(struct SBMFunctionDescriptionStruct * aDescription, uint16_t aValueToFormat); // no println() at the end!
     const char * DescriptionLCD; // if output value should also be printed on LCD
     uint16_t lastValue; // used as storage for last value
 };

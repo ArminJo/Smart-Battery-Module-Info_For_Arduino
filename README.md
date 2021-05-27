@@ -17,11 +17,23 @@ Extract: *Macbook batteries ship with a default unseal password (0x36720414).  T
 Download and extract the repository. In the Arduino IDE open the sketch with File -> Open... and select the src/SBMInfo folder. 
 
 ## Identifying the right connection
-Clock und Data connectors have often a resistance of 300 k to 1 MOhm to Ground.
+The minimal connector layout is: | GROUND | THERMISTOR (103AT) | CLOCK | DATA | VCC (11 or 14 volt) | (clock and data my be switched).
+- The thermistor connection has 10 kOhms to ground at 25 degree celsius.
+- Clock und data connectors have the same resistance (between 300 kOhm to 1 MOhm) to ground.
+- VCC may not be enabled. Sometimes it gets enabled when *Host Present* is connected to ground or clock and data are pulled high to 3.3 or 5 volt.
+If you see more connectors, the may be used for:
+- A second (adjacent) ground and / or VCC to reduce the connector resistance for the supply current.
+- A *Battery Present* signal. This connector is internally connected to ground at the battery pack and NOT connected to ground at the PC.
+- A *Host Present* signal. This connector has a pullup at the battery back and is connected to ground at the PC side.
+Examples:
+| GROUND | BatteryPresent | THERMISTOR ? | CLOCK | DATA | VCC | - seen at HP packs.
+ | GROUND | GROUND | Alert ? | HostPresent | BatteryPresent | DATA | CLOCK  | VCC | VCC | - seen at Dell packs.
+
 After startup, the program scans for a connected I2C device.
-Just try different pin combinations until led stops blinking and `Found I2C device attached at address: 0x0B` is printed.
-After connecting`, full data is printed. 
-Dynamic values are checked every 3 seconds and printed if changed.
+You can try different pin combinations until led stops blinking and `Found I2C device attached at address: 0x0B` is printed.
+If you connect clock or data with the thermistor connector, the scanning stops.<br/>
+After connecting, full data is printed.<br/>
+Dynamic values like temperature, voltage and current are checked every 3 seconds and printed if changed.
 
 Tested with bq20z70, bq20z451, bq2084, bq80201DBT, bq40z50.
 
@@ -43,8 +55,8 @@ Bei der Richtigen hört das Blinken der Led auf und es kommt sofort die Ausgabe `
 
 Bei den Laptop Battery Packs war Plus und Masse immer außen.
 Wenn mehr als 5 Kontakte vorhanden waren, waren sie wie folgt belegt:
-- Masse und Plus doppelt. z.B. + | + | Thermo | Data | Clock | - | -
-- Ein Enable (nur im Laptop mit Masse verbunden) und eine Signal Anschluss (nur im Battery Pack mit Masse verbunden). z.B. + | + | Clock | Data | Signal | Enable | Thermo | - | -
+- Masse und Plus doppelt. z.B. + | + | Thermistor | Data | Clock | - | -
+- Ein Enable (nur im Laptop mit Masse verbunden) und eine Signal Anschluss (nur im Battery Pack mit Masse verbunden). z.B. VCC | VCC | CLOCK | DATA | Signal | Enable | THERMISTOR | GROUND | GROUND |
 
 Der Thermo-Sensor Anschluss war uneinheitlich, mal nicht messbar beschaltet, mal 1 MOhm, mal 1,6 Volt, mal 10 kOhm nach Masse.
 
