@@ -95,15 +95,17 @@ const char StringCapacityModePower[] = "0 mW"; // 10 mWh
 
 struct SBMFunctionDescriptionStruct {
     uint8_t FunctionCode;
-    const char * Description;
-    bool (*ValueFormatter)(struct SBMFunctionDescriptionStruct * aDescription, uint16_t aValueToFormat); // no println() at the end!
-    const char * DescriptionLCD; // if output value should also be printed on LCD
+    const char *Description;
+    void (*ValueFormatter)(struct SBMFunctionDescriptionStruct * aDescription, uint16_t aValueToFormat); // no println() at the end!
+    const char *DescriptionLCD; // if output value should also be printed on LCD
+    uint8_t minDeltaValue; // 0 -> print always. Do not print if difference between current value and last value is less equal minDeltaValue
     uint16_t lastValue; // used as storage for last value
 };
 
 /*
  * TI few ManufacturerAccess Commands
  */
+//#define TI_Device_Type             0x0100
 #define TI_Device_Type             0x0001
 #define TI_Firmware_Version        0x0002
 
