@@ -30,7 +30,7 @@
 #define AverageCurrent          0x0B // of last minute
 #define MAX_ERROR               0x0C // Byte - of state of charge calculation
 
-#define RELATIVE_SOC            0x0D // Byte - StateOfCharge
+#define RELATIVE_SOC            0x0D // Byte - relative charge
 #define ABSOLUTE_SOC            0x0E // Byte
 #define REMAINING_CAPACITY      0x0F
 #define FULL_CHARGE_CAPACITY    0x10
@@ -53,11 +53,11 @@
 #define MANUFACTURER_DATA       0x23   // Data
 #define RESERVED_2              0x25 - 0x2E
 
-#define PACK_STATUS             0x2F   // r/w Word - OptionalMfgFunction5
+#define PACK_STATUS             0x2F   // r/w Word - OptionalMfgFunction5, Block (size 11) for bq8011
 
 #define RESERVED_3              0x30 - 0x3B
 
-#define CELL4_VOLTAGE           0x3C   // r/w Word - OptionalMfgFunction4 - Individual cell voltages don't work on Sony, Lenovo and Dell Packs
+#define CELL4_VOLTAGE           0x3C   // r/w Word - OptionalMfgFunction4 - Individual cell voltages don't work on most (Sony, Lenovo and Dell) packs
 #define CELL3_VOLTAGE           0x3D   // r/w Word - OptionalMfgFunction3
 #define CELL2_VOLTAGE           0x3E   // r/w Word - OptionalMfgFunction2
 #define CELL1_VOLTAGE           0x3F   // r/w Word - OptionalMfgFunction1

@@ -18,9 +18,12 @@ Download and extract the repository. In the Arduino IDE open the sketch with Fil
 
 ## Identifying the right connection
 The minimal connector layout is: | GROUND | THERMISTOR (103AT) | CLOCK | DATA | VCC (11 or 14 volt) | (clock and data my be switched).
-- The thermistor connection has 10 kOhms to ground at 25 degree celsius.
-- Clock und data connectors have the same resistance (between 300 kOhm to 1 MOhm) to ground.
-- VCC may not be enabled. Sometimes it gets enabled when *Host Present* is connected to ground or clock and data are pulled high to 3.3 or 5 volt.
+- The **thermistor** connection has 10 kOhms to ground at 25 degree celsius.
+- **Clock** und data connectors have the same resistance (around 1 MOhm) to ground.
+- **VCC** may not be enabled. Sometimes it gets enabled when *Host Present* is connected to ground or clock and data are pulled high to 3.3 or 5 volt.
+
+Some packs (e.g.for IBM-T41 with bq29310) require once an external voltage (e.g. 11 volt) at the VCC connector to initially get alive after full discharge condition.
+
 If you see more connectors, the may be used for:
 - A second (adjacent) ground and / or VCC to reduce the connector resistance for the supply current.
 - A *Battery Present* signal. This connector is internally connected to ground at the battery pack and NOT connected to ground at the PC.

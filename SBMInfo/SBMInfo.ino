@@ -95,6 +95,8 @@ uint8_t scanForAttachedI2CDevice(void);
 bool testReadAndPrint();
 
 void TogglePin(uint8_t aPinNr);
+
+#define I2C_RETRY_DELAY_MILLIS 10 // 5 was successful for me
 uint16_t readWord(uint8_t aCommand);
 void writeWord(uint8_t aCommand, uint16_t aValue);
 int readWordFromManufacturerAccess(uint16_t aManufacturerCommand);
@@ -149,7 +151,9 @@ const char Current[] PROGMEM = "Current";
 const char Average_Current_of_last_minute[] PROGMEM = "Average current of last minute";
 const char Temperature[] PROGMEM = "Temperature";
 
-#define VOLTAGE_PRINT_DELTA_MILLIVOLT 5
+#define VOLTAGE_PRINT_DELTA_MILLIVOLT 5     // Print only if changed by two ore more mV
+#define VOLTAGE_PRINT_DELTA_MILLIAMPERE 2   // Print only if changed by two ore more mA
+#define VOLTAGE_PRINT_DELTA_MILLIDEGREE 100   // Print only if changed by 0.1 ore more degree
 
 struct SBMFunctionDescriptionStruct sSBMDynamicFunctionDescriptionArray[] = { {
 FULL_CHARGE_CAPACITY, Full_Charge_Capacity, &printCapacity, "" }/* DescriptionLCD must be not NULL */, {
@@ -157,9 +161,9 @@ REMAINING_CAPACITY, Remaining_Capacity, &printCapacity, " remCapacity" }, {
 RELATIVE_SOC, Relative_Charge, &printPercentage, " rel charge " }, {
 ABSOLUTE_SOC, Absolute_Charge, &printPercentage }, {
 VOLTAGE, Voltage, &printVoltage, "", VOLTAGE_PRINT_DELTA_MILLIVOLT } /* DescriptionLCD must be not NULL */, {
-CURRENT, Current, &printCurrent, "", 1 } /* DescriptionLCD must be not NULL */, {
+CURRENT, Current, &printCurrent, "", VOLTAGE_PRINT_DELTA_MILLIAMPERE } /* DescriptionLCD must be not NULL */, {
 AverageCurrent, Average_Current_of_last_minute, &printCurrent }, {
-TEMPERATURE, Temperature, &printTemperature, NULL, 100 }, {
+TEMPERATURE, Temperature, &printTemperature, NULL, VOLTAGE_PRINT_DELTA_MILLIDEGREE }, {
 RUN_TIME_TO_EMPTY, Minutes_remaining_until_empty, &printTime, " min to empty " }, {
 AVERAGE_TIME_TO_EMPTY, Average_minutes_remaining_until_empty, &printTime }, {
 TIME_TO_FULL, Minutes_remaining_for_full_charge, &printTime, " min to full " }, {
@@ -188,7 +192,7 @@ STATE_OF_HEALTH, State_of_Health } };
 bool sCapacityModePower; // false = current, true = power
 uint16_t sDesignVoltage; // to retrieve last value for mWh to mA conversion
 uint16_t sDesignCapacity; // to compute relative capacity percent
-uint16_t sCurrent; // to decide if print "time to" values
+int16_t sCurrent; // to decide if print "time to" values
 uint8_t sGlobalReadError;
 uint8_t sLastGlobalReadError;
 
@@ -290,6 +294,8 @@ void loop() {
         printFunctionDescriptionArray(sSBMDynamicFunctionDescriptionArray,
                 (sizeof(sSBMDynamicFunctionDescriptionArray) / sizeof(SBMFunctionDescriptionStruct)), true);
         printSBMNonStandardInfo(true);
+
+        // clear the display of 'H' for sGlobalReadError
         myLCD.setCursor(19, 0);
         myLCD.print(' ');
     } else {
@@ -305,10 +311,12 @@ void loop() {
         Serial.print(F("\r\nsGlobalReadError changed to: "));
         Serial.println(sGlobalReadError);
         Serial.flush();
-        if (sGlobalReadError == 0) {
-            printInitialInfo();
 
+        if (sGlobalReadError == 0) {
+            // print info again
+            printInitialInfo();
         } else {
+            // display 'H' for sGlobalReadError
             myLCD.setCursor(19, 0);
             myLCD.print('H');
         }
@@ -426,12 +434,7 @@ void printInitialInfo() {
     Serial.flush();
 }
 
-/*
- * First write the command/function address byte, then read the word value for this function
- * From the BQ spec: The processor then sends the bq2060 device address of 0001011 (bits 7–1)
- *                   plus a R/W bit (bit 0) followed by an SMBus command code.
- */
-uint16_t readWord(uint8_t aCommand) {
+void writeCommandWithRetry(uint8_t aCommand) {
     Wire.beginTransmission(sI2CDeviceAddress);
     Wire.write(aCommand);
     sGlobalReadError = Wire.endTransmission(false); // do not send stop, is required for some packs
@@ -443,12 +446,27 @@ uint16_t readWord(uint8_t aCommand) {
      *          4 .. other twi error (lost bus arbitration, bus error, ..)
      *          5 .. timeout
      */
+    if (sGlobalReadError == 2) {
+        delay(I2C_RETRY_DELAY_MILLIS);
+        // Try again
+        Wire.beginTransmission(sI2CDeviceAddress);
+        Wire.write(aCommand);
+        sGlobalReadError = Wire.endTransmission(false); // do not send stop, is required for some packs
+    }
+}
+
+/*
+ * First write the command/function address byte, then read the word value for this function
+ * From the BQ spec: The processor then sends the bq2060 device address of 0001011 (bits 7–1)
+ *                   plus a R/W bit (bit 0) followed by an SMBus command code.
+ */
+uint16_t readWord(uint8_t aCommand) {
+    writeCommandWithRetry(aCommand);
     if (sGlobalReadError != 0) {
 #ifdef DEBUG
         Serial.print(F("Error at I2C access: "));
         Serial.println(sGlobalReadError);
 #endif
-//        Wire.endTransmission(true);
         return 0xFFFF;
     } else {
         Wire.requestFrom(sI2CDeviceAddress, (uint8_t) 2);
@@ -478,9 +496,7 @@ int readWordFromManufacturerAccess(uint16_t aManufacturerCommand) {
 }
 
 uint8_t readBlock(uint8_t aCommand, uint8_t *aDataBufferPtr, uint8_t aDataBufferLength) {
-    Wire.beginTransmission(sI2CDeviceAddress);
-    Wire.write(aCommand);
-    Wire.endTransmission(false);
+    writeCommandWithRetry(aCommand);
     Wire.requestFrom(sI2CDeviceAddress, (uint8_t) 1);
 
 // First read length of data
@@ -491,6 +507,7 @@ uint8_t readBlock(uint8_t aCommand, uint8_t *aDataBufferPtr, uint8_t aDataBuffer
     Serial.print(F("tLengthOfData="));
     Serial.println(tLengthOfData);
 #endif
+    aDataBufferLength = aDataBufferLength - 1; // we read later with tLengthOfData + 1
 
     if (tLengthOfData > aDataBufferLength) {
         Serial.println();
@@ -505,9 +522,8 @@ uint8_t readBlock(uint8_t aCommand, uint8_t *aDataBufferPtr, uint8_t aDataBuffer
         /*
          * It is foolproof to start a new transmission here
          */
-        Wire.beginTransmission(sI2CDeviceAddress);
-        Wire.write(aCommand);
-        Wire.endTransmission(false);
+        writeCommandWithRetry(aCommand);
+
 #ifdef DEBUG
         uint8_t tNumberOfDataReceived = Wire.requestFrom(sI2CDeviceAddress, (uint8_t) (tLengthOfData + 1)); // +1 since the length is read again
         Serial.print(F("tNumberOfDataReceived="));
@@ -648,7 +664,7 @@ void printCapacity(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription,
     if (sCapacityModePower) {
         // print also mA since changing capacity mode did not work
         Serial.print(" | ");
-        uint8_t tCapacityCurrent = (aCapacity * 10000L) / sDesignVoltage;
+        uint16_t tCapacityCurrent = (aCapacity * 10000L) / sDesignVoltage;
         Serial.print(tCapacityCurrent);
         Serial.print(StringCapacityModeCurrent);
         Serial.print('h');
@@ -697,9 +713,6 @@ void printCapacity(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription,
     }
 }
 
-/*
- * Print only if changed by two ore more mV
- */
 void printVoltage(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint16_t aVoltage) {
     Serial.print((float) aVoltage / 1000, 3);
     Serial.print(" V");
@@ -722,27 +735,22 @@ void printVoltage(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, 
     }
 }
 
-/*
- * Print only if changed by two ore more mA
- */
 void printCurrent(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint16_t aCurrent) {
-    sCurrent = aCurrent;
+    int tCurrent = (int) aCurrent; // current can be negative
+    sCurrent = tCurrent;
 
-    Serial.print((int) aCurrent);
+    Serial.print(tCurrent);
     Serial.print(" mA");
     if (aSBMFunctionDescription->DescriptionLCD != NULL) {
         // print 7 character from 12 to 18
         myLCD.setCursor(9, 0);
         myLCD.print("           "); // clear old value from 9 to 19 incl. leading and trailing spaces
         myLCD.setCursor(12, 0);
-        myLCD.print((int) aCurrent);
+        myLCD.print(tCurrent);
         myLCD.print(" mA");
     }
 }
 
-/*
- * Print only if changed by more than 0.1 C
- */
 void printTemperature(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint16_t aTemperature) {
     Serial.print((float) (aTemperature / 10.0) - 273.15);
     Serial.print(" C");
@@ -757,9 +765,10 @@ void printTime(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uin
     if (aMinutes >= 0xFFFE) {
         Serial.print(F("Battery not being (dis)charged"));
     } else {
-        uint16_t tHour;
-        if (aMinutes >= 60) {
-            tHour = aMinutes / 60;
+
+        // Hours
+        uint16_t tHour = aMinutes / 60;
+        if (tHour > 0) {
             Serial.print(tHour);
             Serial.print(" h ");
             if (aSBMFunctionDescription->DescriptionLCD != NULL && sCurrent != 0) {
@@ -767,17 +776,19 @@ void printTime(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uin
                 if (aMinutes > ((100 * 60) - 1)) {
                     tHour = 99;
                 }
-                LCDClearLine(1);
+                LCDClearLine(2);
                 myLCD.print(tHour);
                 myLCD.print(" h ");
             }
             aMinutes = aMinutes % 60;
         }
+
+        // Minutes
         Serial.print(aMinutes);
         Serial.print(" min");
         if (aSBMFunctionDescription->DescriptionLCD != NULL && sCurrent != 0) {
             if (tHour == 0) {
-                LCDClearLine(1);
+                LCDClearLine(2);
             }
 
             myLCD.print(aMinutes);
@@ -870,16 +881,16 @@ void printBatteryStatus(struct SBMFunctionDescriptionStruct *aSBMFunctionDescrip
      * Status Bits
      */
     if (aStatus & INITIALIZED) {
-        prettyPrintlnValueDescription(F("- Initialized"));
+        prettyPrintlnValueDescription(F("80 Initialized"));
     }
     if (aStatus & DISCHARGING) {
-        prettyPrintlnValueDescription(F("- Discharging"));
+        prettyPrintlnValueDescription(F("40 Discharging"));
     }
     if (aStatus & FULLY_CHARGED) {
-        prettyPrintlnValueDescription(F("- Fully Charged"));
+        prettyPrintlnValueDescription(F("20 Fully Charged"));
     }
     if (aStatus & FULLY_DISCHARGED) {
-        prettyPrintlnValueDescription(F("- Fully Discharged"));
+        prettyPrintlnValueDescription(F("10 Fully Discharged"));
     }
 }
 
@@ -962,6 +973,10 @@ void printSBMManufacturerInfo(void) {
             Serial.print(((float) tLevel) / 1000, 3);
             Serial.println(" V");
             Serial.println();
+
+        } else if (tType == 2072) {
+            Serial.print(F("Controller IC identified by device type: "));
+            Serial.println(F("bq8011/bq8015)"));
 
         } else if (tType == 2084) {
             Serial.print(F("Controller IC identified by device type: "));
