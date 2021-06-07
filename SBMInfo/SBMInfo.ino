@@ -2,6 +2,8 @@
  *  SBMInfo.ino
  *  Shows Smart Battery Info
  *
+ *  If a LiPo supply is detected, the LCD display timing for standalone usage (without serial connection) is activated.
+ *
  *  Copyright (C) 2016-2020  Armin Joachimsmeyer
  *  armin.joachimsmeyer@gmail.com
  *
@@ -26,15 +28,62 @@
 
 #include "SBMInfo.h"
 #include <Wire.h>
-#include "LiquidCrystal.h"
 #include "ADCUtils.h"
 
+#define VERSION_EXAMPLE "4.0"
+
+/*
+ * Activate the type of LCD you use
+ */
+#define USE_PARALELL_LCD
+//#define USE_SERIAL_LCD
+/*
+ * Define the size of your LCD
+ */
+//#define USE_1602_LCD // no support for 1602 yet
+#define USE_2004_LCD
+
+/*
+ * Imports and definitions for LCD
+ */
+#if defined(USE_SERIAL_LCD)
+#include <LiquidCrystal_I2C.h> // Use an up to date library version which has the init method
+#endif
+#if defined(USE_PARALELL_LCD)
+#include <LiquidCrystal.h>
+#endif
+
+#if defined(USE_1602_LCD)
+// definitions for a 1602 LCD
+#define LCD_COLUMNS 16
+#define LCD_ROWS 2
+#endif
+#if defined(USE_2004_LCD)
+// definitions for a 2004 LCD
 #define LCD_COLUMNS 20
 #define LCD_ROWS 4
+#endif
 
-#define FORCE_SLOW_DISPLAY_TIMING_PIN 3
+#if defined(USE_SERIAL_LCD) && defined(USE_PARALELL_LCD)
+#error Cannot use parallel and serial LCD simultaneously
+#endif
+#if defined(USE_SERIAL_LCD) || defined(USE_PARALELL_LCD)
+#define USE_LCD
+#endif
 
-#define VERSION_EXAMPLE "4.0"
+#if defined(USE_SERIAL_LCD)
+LiquidCrystal_I2C myLCD(0x27, LCD_COLUMNS, LCD_ROWS);  // set the LCD address to 0x27 for a 20 chars and 2 line display
+#endif
+#if defined(USE_PARALELL_LCD)
+//LiquidCrystal myLCD(2, 3, 4, 5, 6, 7);
+//LiquidCrystal myLCD(7, 8, A0, A1, A2, A3);
+LiquidCrystal myLCD(7, 8, 3, 4, 5, 6);
+#endif
+
+// Include it after LCD settings, it requires the macros USE_LCD and USE_2004_LCD to be set
+#include "MeasureVoltageAndResistance.cpp.h"
+
+#define FORCE_LCD_DISPLAY_TIMING_PIN 3 // if pulled to ground, enables slow display timing as used for LiPo supply
 
 /*
  * Version 4.0 - 5/2021
@@ -54,13 +103,11 @@
  *  Uses A4/A5 - the hardware I2C pins on Arduino
  */
 
-#define DATA_BUFFER_LENGTH 32
+#define DATA_BUFFER_LENGTH 32 // For Block Read
 uint8_t sI2CDataBuffer[DATA_BUFFER_LENGTH];
 
 uint8_t sI2CDeviceAddress = SBM_DEVICE_ADDRESS; // >= 128 means invalid
 
-//LiquidCrystal myLCD(2, 3, 4, 5, 6, 7);
-LiquidCrystal myLCD(7, 8, A0, A1, A2, A3);
 void LCDClearLine(uint8_t aLineNumber);
 
 void prettyPrintDescription(const char *aDescription);
@@ -101,6 +148,8 @@ uint16_t readWord(uint8_t aCommand);
 void writeWord(uint8_t aCommand, uint16_t aValue);
 int readWordFromManufacturerAccess(uint16_t aManufacturerCommand);
 uint8_t readBlock(uint8_t aCommand, uint8_t *aDataBufferPtr, uint8_t aDataBufferLength);
+
+void MeasureVoltageAndResistance();
 
 /*
  * Command definitions
@@ -236,7 +285,7 @@ BQ20Z70_PackVoltage, Pack_Voltage, &printVoltage } };
 void setup() {
     pinMode(LED_BUILTIN, OUTPUT);
 
-    pinMode(FORCE_SLOW_DISPLAY_TIMING_PIN, INPUT_PULLUP);
+    pinMode(FORCE_LCD_DISPLAY_TIMING_PIN, INPUT_PULLUP);
 
     Serial.begin(115200);
 #if defined(__AVR_ATmega32U4__) || defined(SERIAL_USB) || defined(SERIAL_PORT_USBVIRTUAL)  || defined(ARDUINO_attiny3217)
@@ -245,8 +294,6 @@ void setup() {
     // Just to know which program is running on my Arduino
     Serial.println(F("START " __FILE__ "\r\nVersion " VERSION_EXAMPLE " from " __DATE__));
 
-    // Shutdown SPI, timers
-    PRR = (1 << PRSPI) | (1 << PRTIM1) | (1 << PRTIM2);
     // Disable  digital input on all unused ADC channel pins to reduce power consumption
     DIDR0 = ADC0D | ADC1D | ADC2D | ADC3D;
 
@@ -261,7 +308,7 @@ void setup() {
     Wire.setClock(32000); // lowest rate available is 31000
 //    Wire.setClock(50000); // seen this for sony packs
 
-    if (getVCCVoltageMillivolt() < 4300 || digitalRead(FORCE_SLOW_DISPLAY_TIMING_PIN) == LOW) {
+    if (getVCCVoltageMillivolt() < 4300 || digitalRead(FORCE_LCD_DISPLAY_TIMING_PIN) == LOW) {
         sVCCisLIPO = true;
     } else {
         Serial.println(F("No LiPo supply detected -> fast display timing"));
@@ -278,6 +325,7 @@ void setup() {
         Serial.flush();
         do {
             sI2CDeviceAddress = scanForAttachedI2CDevice();
+            MeasureVoltageAndResistance();
             delay(500);
             TogglePin(LED_BUILTIN);
         } while (sI2CDeviceAddress == SBM_INVALID_ADDRESS);
