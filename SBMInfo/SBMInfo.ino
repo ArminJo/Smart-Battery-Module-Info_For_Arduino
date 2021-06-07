@@ -33,6 +33,11 @@
 #define VERSION_EXAMPLE "4.0"
 
 /*
+ * This requires 4 resistors at Pins A0 to A3, see file MeasureVoltageAndResistance.cpp.h
+ */
+#define USE_VOLTAGE_AND_RESISTANCE_MEASUREMENT
+
+/*
  * Activate the type of LCD you use
  */
 #define USE_PARALELL_LCD
@@ -50,7 +55,7 @@
 #include <LiquidCrystal_I2C.h> // Use an up to date library version which has the init method
 #endif
 #if defined(USE_PARALELL_LCD)
-#include <LiquidCrystal.h>
+#include "LiquidCrystal.h"
 #endif
 
 #if defined(USE_1602_LCD)
@@ -80,8 +85,10 @@ LiquidCrystal_I2C myLCD(0x27, LCD_COLUMNS, LCD_ROWS);  // set the LCD address to
 LiquidCrystal myLCD(7, 8, 3, 4, 5, 6);
 #endif
 
+#if defined(USE_VOLTAGE_AND_RESISTANCE_MEASUREMENT)
 // Include it after LCD settings, it requires the macros USE_LCD and USE_2004_LCD to be set
 #include "MeasureVoltageAndResistance.cpp.h"
+#endif
 
 #define FORCE_LCD_DISPLAY_TIMING_PIN 3 // if pulled to ground, enables slow display timing as used for LiPo supply
 
@@ -325,7 +332,9 @@ void setup() {
         Serial.flush();
         do {
             sI2CDeviceAddress = scanForAttachedI2CDevice();
+#if defined(USE_VOLTAGE_AND_RESISTANCE_MEASUREMENT)
             MeasureVoltageAndResistance();
+#endif
             delay(500);
             TogglePin(LED_BUILTIN);
         } while (sI2CDeviceAddress == SBM_INVALID_ADDRESS);
