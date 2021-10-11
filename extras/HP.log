@@ -1,0 +1,64 @@
+START ../src/SBMInfo.cpp
+Version 4.0 from Oct 12 2021
+No LiPo supply detected -> fast display timing
+Found attached I2C device at 0x0B
+
+*** STATIC INFO ***
+Battery mode (BIN)                  0b110000010000001
+                                    - Internal Charge Controller Supported
+                                    - Battery OK
+                                    - Disable AlarmWarning broadcast to Host and Smart Battery Charger
+                                    - Disable broadcasts of ChargingVoltage and ChargingCurrent to Smart Battery Charger
+
+Manufacturer Name                   DP-SDI51
+Chemistry                           LION
+Manufacturer Data                   0x6 7D B B1 67 14 96 D 0 C8 0 A9 2A 
+Device Name                         DAVOS
+Serial number                       55982 | 0xDAAE
+Manufacture date (YYYY-MM-DD)       2008-5-25
+Design voltage                      10.800 V
+Design capacity                     5100 mAh
+Charging current                    3570 mA
+Charging voltage                    12.600 V
+Specification info                  33 | 0x21
+Cycle count                         277
+
+Max error of charge calculation     100%
+Remaining time alarm                10 min
+Remaining capacity alarm            510 mAh
+Pack status (BIN)                   0b11010110000
+
+*** MANUFACTURER INFO ***
+Device Type: 0 | 0x0
+
+*** RATE TEST INFO ***
+Setting AT rate to                  100 mA
+TimeToFull at rate                  Battery not being (dis)charged - received 0xFFFF
+Setting AT rate to                  -100 mA
+TimeToEmpty at rate                 21 h 28 min
+Can be delivered for 10 seconds at rate: 1 | 0x1
+
+*** DYNAMIC INFO ***
+Full charge capacity                4215 mAh = 82%
+Remaining capacity                  2148 mAh
+Relative charge                     51%
+Absolute charge                     42%
+Voltage                             11.467 V
+Current                             0 mA
+Average current of last minute      0 mA
+Temperature                         21.55 C
+Minutes remaining until empty       Battery not being (dis)charged - received 0xFFFF
+Average minutes remaining until empty: Battery not being (dis)charged - received 0xFFFF
+Minutes remaining for full charge   Battery not being (dis)charged - received 0xFFFF
+Battery status (BIN)                0b11000000
+                                    80 Initialized
+                                    40 Discharging
+
+
+*** DYNAMIC NON STANDARD INFO ***
+Cell 1 Voltage:                     3.826 V
+Cell 2 Voltage:                     3.823 V
+Cell 3 Voltage:                     3.819 V
+Cell 4 Voltage:                     0.000 V
+
+*** CHANGED VALUES ***

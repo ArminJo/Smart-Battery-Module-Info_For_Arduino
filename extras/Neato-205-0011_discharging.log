@@ -1,0 +1,153 @@
+START ../src/SBMInfo.cpp
+Version 4.0 from Oct 12 2021
+No LiPo supply detected -> fast display timing
+---------------- SBM module was sleeping --------------------
+Transmission error code="address send, NACK received. Device not connected?" while looking for device at default address 0x0B
+Start scanning for device at I2C bus
+Scan found no attached I2C device - 0
+Overflow kOhm
+Scan found no attached I2C device - 1
+Overflow kOhm
+Scan found no attached I2C device - 2
+   0.378 V
+Scan found no attached I2C device - 3
+   0.386 V
+Scan found no attached I2C device - 4
+Overflow kOhm
+Scan found no attached I2C device - 5
+   0.310 V
+Scan found no attached I2C device - 6
+   0.391 V
+Scan found no attached I2C device - 7
+Overflow kOhm
+Scan found no attached I2C device - 8
+   0.244 V
+Found I2C device attached at address: 0xB
+
+*** STATIC INFO ***
+Battery mode (BIN)                  0b0
+                                    - Battery OK
+
+Manufacturer Name                   Panasonic
+Chemistry                           LION
+Manufacturer Data                   0x0 8 0 2 
+Device Name                         F164A1028
+Serial number                       16393 | 0x4009
+Manufacture date (YYYY-MM-DD)       2001-10-15
+Design voltage                      14.400 V
+Design capacity                     4200 mAh
+Charging current                    2000 mA
+Charging voltage                    16.800 V
+Specification info                  49 | 0x31
+Cycle count                         215
+
+Max error of charge calculation     0%
+Remaining time alarm                10 min
+Remaining capacity alarm            420 mAh
+
+*** MANUFACTURER INFO ***
+Device Type: 49152 | 0xC000
+
+*** RATE TEST INFO ***
+Setting AT rate to                  100 mA
+TimeToFull at rate                  Battery not being (dis)charged - received 0xFFFF
+Setting AT rate to                  -100 mA
+TimeToEmpty at rate                 Battery not being (dis)charged - received 0xFFFF
+Can be delivered for 10 seconds at rate: 65535 | 0xFFFF - received 0xFFFF
+
+*** DYNAMIC INFO ***
+Full charge capacity                3877 mAh = 92%
+Remaining capacity                  3132 mAh
+Relative charge                     81%
+Absolute charge                     75%
+Voltage                             15.814 V
+Current                             0 mA
+Average current of last minute      0 mA
+Temperature                         20.85 C
+Minutes remaining until empty       Battery not being (dis)charged - received 0xFFFF
+Average minutes remaining until empty: Battery not being (dis)charged - received 0xFFFF
+Minutes remaining for full charge   Battery not being (dis)charged - received 0xFFFF
+Battery status (BIN)                0b11000000
+                                    80 Initialized
+                                    40 Discharging
+
+
+*** DYNAMIC NON STANDARD INFO ***
+Cell 1 Voltage:                     3.954 V
+Cell 2 Voltage:                     3.956 V
+Cell 3 Voltage:                     3.952 V
+Cell 4 Voltage:                     3.952 V
+
+*** CHANGED VALUES ***
+---------------- I connected 22 Ohm Resistor -> 699 mA --------------------
+
+Voltage                             15.788 V
+Average current of last minute      -187 mA
+Average minutes remaining until empty: 15 h 24 min
+Cell 4 Voltage:                     3.935 V
+Voltage                             15.807 V
+Average current of last minute      -120 mA
+Average minutes remaining until empty: 24 h 1 min
+Cell 4 Voltage:                     3.949 V
+Average current of last minute      -77 mA
+Average minutes remaining until empty: 37 h 25 min
+Voltage                             15.714 V
+Current                             -699 mA
+Average current of last minute      -178 mA
+Minutes remaining until empty       4 h 7 min
+Average minutes remaining until empty: 16 h 11 min
+Cell 1 Voltage:                     3.929 V
+Cell 2 Voltage:                     3.932 V
+Cell 3 Voltage:                     3.926 V
+Cell 4 Voltage:                     3.927 V
+Remaining capacity                  3131 mAh
+Average current of last minute      -365 mA
+Average minutes remaining until empty: 7 h 53 min
+Remaining capacity                  3130 mAh
+Average current of last minute      -485 mA
+Average minutes remaining until empty: 5 h 56 min
+
+---------------- Disonnected 22 Ohm Resistor --------------------
+
+Voltage                             15.778 V
+Current                             0 mA
+Average current of last minute      -494 mA
+Minutes remaining until empty       Battery not being (dis)charged - received 0xFFFF
+Average minutes remaining until empty: 6 h 0 min
+Cell 1 Voltage:                     3.948 V
+Cell 2 Voltage:                     3.950 V
+Cell 3 Voltage:                     3.947 V
+Cell 4 Voltage:                     3.935 V
+Voltage                             15.791 V
+Average current of last minute      -317 mA
+Average minutes remaining until empty: 9 h 5 min
+Cell 4 Voltage:                     3.945 V
+Average current of last minute      -203 mA
+Average minutes remaining until empty: 14 h 11 min
+Average current of last minute      -134 mA
+Average minutes remaining until empty: 21 h 29 min
+Voltage                             15.797 V
+Average current of last minute      -86 mA
+Average minutes remaining until empty: 33 h 29 min
+Average current of last minute      -55 mA
+Average minutes remaining until empty: 52 h 21 min
+Average current of last minute      -37 mA
+Average minutes remaining until empty: 82 h 17 min
+Average current of last minute      -23 mA
+Average minutes remaining until empty: 125 h 13 min
+Average current of last minute      -15 mA
+Average minutes remaining until empty: 192 h 0 min
+Average current of last minute      -10 mA
+Average minutes remaining until empty: 288 h 0 min
+Average current of last minute      -6 mA
+Average minutes remaining until empty: 480 h 0 min
+Average current of last minute      -4 mA
+Average minutes remaining until empty: 720 h 0 min
+Average current of last minute      -3 mA
+Average minutes remaining until empty: 960 h 0 min
+Average current of last minute      -2 mA
+Average minutes remaining until empty: Battery not being (dis)charged
+Voltage                             15.803 V
+Average current of last minute      -1 mA - received 0xFFFF
+Average current of last minute      0 mA
+Average minutes remaining until empty: Battery not being (dis)charged - received 0xFFFF

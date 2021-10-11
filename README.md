@@ -1,5 +1,5 @@
 # [SMB](https://github.com/ArminJo/Smart-Battery-Module-Info_For_Arduino) - Smart Battery Module (Laptop Battery Pack) Info
-### Version 3.1.1
+### Version 4.0.0
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Build Status](https://github.com/ArminJo/Smart-Battery-Module-Info_For_Arduino/workflows/TestCompile/badge.svg)](https://github.com/ArminJo/Smart-Battery-Module-Info_For_Arduino/actions)
 [![Hit Counter](https://hitcounter.pythonanywhere.com/count/tag.svg?url=https%3A%2F%2Fgithub.com%2FArminJo%2FSmart-Battery-Module-Info_For_Arduino)](https://github.com/brentvollebregt/hit-counter)
@@ -9,12 +9,12 @@ Prints SBM controller info
 Based on https://github.com/PowerCartel/PackProbe from Power Cartel http://powercartel.com/projects/packprobe/.
 
 # Disclaimer
-**I do not know how to enter full access mode, clear permanent filure or unlock any controller IC.** Unfortunally according to most datasheets, you need an unlock key.
+**I do not know how to enter full access mode, clear permanent failure or unlock any controller IC.** Unfortunally according to most datasheets, you need an unlock key.
 See also this [article from 2011](https://media.blackhat.com/bh-us-11/Miller/BH_US_11_Miller_Battery_Firmware_Public_WP.pdf).
 Extract: *Macbook batteries ship with a default unseal password (0x36720414).  This was found by reverse engineering a Macbook battery update.  On Macbook batteries, the full access mode password is also hardcoded and default (0xffffffff).* 
 
 ## Compile with the Arduino IDE
-Download and extract the repository. In the Arduino IDE open the sketch with File -> Open... and select the src/SBMInfo folder. 
+Download and extract the repository. In the Arduino IDE open the sketch with File -> Open... and select the SBMInfo folder. 
 
 ## Identifying the right connection
 The minimal connector layout is: | GROUND | THERMISTOR (103AT) | CLOCK | DATA | VCC (11 or 14 volt) | (clock and data my be switched).
@@ -32,9 +32,13 @@ Examples:
 | GROUND | BatteryPresent | THERMISTOR ? | CLOCK | DATA | VCC | - seen at HP packs.
  | GROUND | GROUND | Alert ? | HostPresent | BatteryPresent | DATA | CLOCK  | VCC | VCC | - seen at Dell packs.
 
-After startup, the program scans for a connected I2C device.
-You can try different pin combinations until led stops blinking and `Found I2C device attached at address: 0x0B` is printed.
-If you connect clock or data with the thermistor connector, the scanning stops.<br/>
+After startup, the program scans for a connected I2C device.<br/>
+In version 4.0 a voltage and resistance measurement by means of 4 additional resistors is integrated **to identify the I2C pins**.
+It measures voltage or resistance to ground (if voltage is zero).<br/>
+**The I2c pins have around 300 kOhm to 1000 kOhm**, the thermistor 10 kOhm.
+
+You can try different I2C pin combinations until led stops blinking and `Found I2C device attached at address: 0x0B` is printed.
+If you connect clock or data  with the thermistor connector or ground, the scanning stops.<br/>
 After connecting, full data is printed.<br/>
 Dynamic values like temperature, voltage and current are checked every 3 seconds and printed if changed.
 
@@ -42,15 +46,38 @@ Tested with bq20z70, bq20z451, bq2084, bq80201DBT, bq40z50.
 
 An example schematic for a SBM module can be found in the datasheet of TI bq29311 at page 9.
 
-![My setup](https://github.com/ArminJo/Smart-Battery-Module-Info_For_Arduino/blob/master/extras/Breadboard.jpg)
+![Simple breadboard setup](pictures/Breadboard.jpg)
 
-![My setup](https://github.com/ArminJo/Smart-Battery-Module-Info_For_Arduino/blob/master/extras/With_LCD.jpg)
+# LCD display content
+### LCD Display before device connected
+1. line: "SBMInfo" | Version |  VCC voltage
+2. line: Date of program compilation
+3. line: "Scan for device" | Scan counter
+4. line: Resistance or Voltage
+
+### LCD Display after device connected
+1. line: "SBMInfo" | Version
+2. line: Date of program compilation | Manufacturer name
+3. line: Manufacturer date (YYYY-MM-DD) | Battery cycle count
+4. line: Design voltage | Design capacity
+
+### LCD Display dynamic data
+1. line: Voltage | Current (negative for discharging) | optional 'H' for read error (hold)
+2. line: Percent of designed full charge capacity | Design capacity -> Full charge capacity
+3. line: Percent of relative charge
+3. line: Time to empty of full at current current (of line 1)
+4. line: Currently available (remaining) capacity
+
+| Dynamic data | Dynamic data while discharging |
+|-|-|
+| ![LCD start](pictures/LCDDisplay_DynamicData.jpg) | ![Dynamic data discharging](pictures/LCDDisplay_DynamicData_Discharging.jpg) |
 
 ## German Documentation
 Gibt die Daten des SMB Controllers aus.
 Basiert auf https://github.com/PowerCartel/PackProbe von Power Cartel http://powercartel.com/projects/packprobe/. Hier gibt es auch weitere wertvolle Informationen.
 
 ## Finden der Anschlüsse.
+In der Version 4.0 ist eine Spannungs und Widerstandsmessung mittels 4 Widerständen integriert, um die I2C Pins zu identifizieren.
 Die Clock und Data Eingänge waren bei meinen Packs die Anschlüsse mit einem Widerstand von ca. 300 k bis 1 MOhm nach Masse.
 Nach dem Booten sucht das Programm nach einem angeschlossenen I2C Device.
 Man kann also alle möglichen Pinkombinationen von Clock und Data am Battery Pack ausprobieren.
@@ -71,89 +98,104 @@ Tested with bq20z70, bq20z451, bq2084, bq80201DBT, bq40z50.
 
 Einen Schaltplan zu den Batterie Modulen gibt es im Datenblatt zum TI bq29311 auf Seite 9.
 
-###Sample output:
-Sample outputs can be found in folder extras.
+### Sample output:
+Sample outputs can be found in folder [extras](https://github.com/ArminJo/Smart-Battery-Module-Info_For_Arduino/tree/master/extras).
 
 ```
 START ../src/SBMInfo.cpp
-Version 2.1 from Oct 27 2018
-I2C initalized successfully
+Version 4.0 from Oct 12 2021
+No LiPo supply detected -> fast display timing
 Found attached I2C device at 0xB
 
-*** STATIC INFO ***
-Chemistry: LION
-Manufacturer Name: GW
-Manufacturer Data: †A;0ÿ  È ¬& - 0x86 41 3B 30 FF 1E 0 11 0 C8 0 AC 26 
-Device Name:  DELL 0
-Serial Number: 46
-Manufacture Date (YYYY-MM-DD): 2012-9-12
-Design Capacity: 6600 mAh
-Design Voltage: 11.100 V
-Charging Current: 4100 mA
-Charging Voltage: 12.600 V
-Specification Info: 33
-Cycle Count: 39
-Max Error of charge calculation (%): 8
-RemainingTimeAlarm: 10 min
-Remaining Capacity Alarm: 660 mAh
-Battery Mode (BIN): 0b110000000000000
-- Battery OK
-- Disable AlarmWarning broadcast to Host and Smart Battery Charger
-- Disable broadcasts of ChargingVoltage and ChargingCurrent to Smart Battery Charger
-Pack Status (BIN): 0b1000011010010000
+Battery mode (BIN)                  0b110000010000001
+                                    - Internal Charge Controller Supported
+                                    - Battery OK
+                                    - Disable AlarmWarning broadcast to Host and Smart Battery Charger
+                                    - Disable broadcasts of ChargingVoltage and ChargingCurrent to Smart Battery Charger
+
+Manufacturer Name                   DP-SDI51
+Chemistry                           LION
+Manufacturer Data                   0x6 7D B B1 67 14 96 D 0 C8 0 A9 2A 
+Device Name                         DAVOS
+Serial number                       55982 | 0xDAAE
+Manufacture date (YYYY-MM-DD)       2008-5-25
+Design voltage                      10.800 V
+Design capacity                     5100 mAh
+Charging current                    3570 mA
+Charging voltage                    12.600 V
+Specification info                  33 | 0x21
+Cycle count                         277
+
+Max error of charge calculation     100%
+Remaining time alarm                10 min
+Remaining capacity alarm            510 mAh
+Pack status (BIN)                   0b11010110000
 
 *** MANUFACTURER INFO ***
-Device Type: 2084 / 0x824
-Controller IC identified by device type: bq2084
-End of Discharge Voltage Level: 9.900 V
-
-Firmware Version: 1.50
-Manufacturer Status (BIN): 0b0
-- FET Status 0
-- State: 0b0
+Device Type: 0 | 0x0
 
 *** RATE TEST INFO ***
-Setting AT rate to 100 mA
-TimeToFull at rate: 265 min
-Setting AT rate to -100 mA
-TimeToEmpty at rate: 3061 min
-Can be delivered for 10 seconds at rate: 1
+Setting AT rate to                  100 mA
+TimeToFull at rate                  Battery not being (dis)charged - received 0xFFFF
+Setting AT rate to                  -100 mA
+TimeToEmpty at rate                 21 h 28 min
+Can be delivered for 10 seconds at rate: 1 | 0x1
 
 *** DYNAMIC INFO ***
-Full Charge Capacity: 5545 mAh
-Remaining Capacity: 5102 mAh
-Relative Charge(%): 92
-Absolute Charge(%): 77
-Minutes remaining until empty: 2915 min
-Average minutes remaining until empty: 2943 min
-Minutes remaining for full charge: Battery not beeing (dis)charged
-Battery Status (BIN): 0b11000000
-- Initialized
-- Discharging
-Voltage: 12.212 V
-Current: -105 mA
-Average Current of last minute: -104 mA
-Temperature: 25.95 C
+Full charge capacity                4215 mAh = 82%
+Remaining capacity                  2148 mAh
+Relative charge                     51%
+Absolute charge                     42%
+Voltage                             11.467 V
+Current                             0 mA
+Average current of last minute      0 mA
+Temperature                         21.55 C
+Minutes remaining until empty       Battery not being (dis)charged - received 0xFFFF
+Average minutes remaining until empty: Battery not being (dis)charged - received 0xFFFF
+Minutes remaining for full charge   Battery not being (dis)charged - received 0xFFFF
+Battery status (BIN)                0b11000000
+                                    80 Initialized
+                                    40 Discharging
+
 
 *** DYNAMIC NON STANDARD INFO ***
-Cell 1 Voltage: 4.074 V
-Cell 2 Voltage: 4.070 V
-Cell 3 Voltage: 4.068 V
-Cell 4 Voltage: 0.000 V
-State of Health: 0
+Cell 1 Voltage:                     3.826 V
+Cell 2 Voltage:                     3.823 V
+Cell 3 Voltage:                     3.819 V
+Cell 4 Voltage:                     0.000 V
 
 *** CHANGED VALUES ***
-Remaining Capacity: 5101 mAh
-Minutes remaining until empty: 2914 min
-Average minutes remaining until empty: 2942 min
-Average minutes remaining until empty: 2914 min
-Voltage: 12.209 V
-Remaining Capacity: 5099 mAh
-Minutes remaining until empty: 2913 min
-Average minutes remaining until empty: 2913 min
+
+--- Next values are from another Pack! I connected 22 Ohm Resistor -> 699 mA discharging
+
+Voltage                             15.788 V
+Average current of last minute      -187 mA
+Average minutes remaining until empty: 15 h 24 min
+Cell 4 Voltage:                     3.935 V
+Voltage                             15.807 V
+Average current of last minute      -120 mA
+Average minutes remaining until empty: 24 h 1 min
+Cell 4 Voltage:                     3.949 V
+Average current of last minute      -77 mA
+Average minutes remaining until empty: 37 h 25 min
+Voltage                             15.714 V
+Current                             -699 mA
+Average current of last minute      -178 mA
+Minutes remaining until empty       4 h 7 min
+Average minutes remaining until empty: 16 h 11 min
 ```
 
+### Fritzing board
+![Fritzing board](extras/SBMInfo_Steckplatine.png)
+### Fritzing schematics
+![Fritzing schematics](extras/SBMInfo_Schaltplan.png)
+
 # Revision History
+### Version 4.0.0
+- Integrated voltage and resistance measurement.
+- Major improvements in I2C communication and output.
+- Detection of disconnect.
+
 ### Version 3.1.1
 - Better prints at scanning.
 

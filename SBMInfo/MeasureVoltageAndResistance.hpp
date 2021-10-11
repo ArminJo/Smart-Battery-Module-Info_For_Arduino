@@ -1,7 +1,8 @@
 /*
- *  MeasureVoltageAndResistance.cpp.h
+ *  MeasureVoltageAndResistance.hpp
  *
- *  Measures voltage and resistance with 6 mV and 2 Ohm resolution at the lower end.
+ *  Measures voltage and resistance with 1 mV and 2 Ohm resolution at the lower end.
+ *  First voltage is measured. If voltage is zero, then resistance to ground is measured using 5 volt (VCC) and 10 kOhm or 100 kOhm supply.
  *
  *  Copyright (C) 2021  Armin Joachimsmeyer
  *  Email: armin.joachimsmeyer@gmail.com
@@ -25,7 +26,7 @@
 
 /*
  *  SCHEMATIC
- *            +----o A3 open/VCC(R) | open(U)
+ *            +----o A3  open/VCC (for R measurement) | open (for U measurement)
  *            |
  *            -
  *           | |
@@ -33,23 +34,23 @@
  *           | |
  *            -
  *            |     _____
- * Input <----+----|_____|---o input(R) | open(U)
- *            |     100 k - just to protect the pin
- *    ^       -
- *    |      | |
- *    |      | | R1 (100 kOhm)
- *    |      | |
- *    -       -
- *   | |      |
- *   | | Rx   +---o A0 VCC(R) | input(U)
- *   | |      |
- *    -       -
- *    |      | |
- *    o GND  | | R2 (22k)
+ * Input <----+----|_____|---o  A1 input (for R measurement) | open (for U measurement)
+ *   ^        |     100 k - just to protect the pin
+ *   |        -
+ *   |       | |
+ *   |       | | R1 (100 kOhm)
+ *   |       | |
+ *   -        -
+ *  | |       |
+ *  | | Rx    +---o A0  VCC(R) | input(U)
+ *  | |       |
+ *   -        -
+ *   |       | |
+ *   o GND   | | R2 (22k)
  *           | |
  *            -
  *            |
- *            +---o A2 open(R) | GND(U)
+ *            +---o A2  open(R) | open/GND(U)
  *
  *  The ratio of R1 to Rx is equal the Ratio of (1023 - x) to x
  *
@@ -61,15 +62,21 @@
 
 #include "ADCUtils.h"
 
+//#define NO_PRINT_OF_RESISTOR_MEASURMENT_VOLTAGE // enables print of voltage at resistor under measurement (0 to VCC).
+
 /*
  * Voltmeter+Ohmmeter connections and resistors
  */
-#define VOLTAGE_IN_AND_RESISTOR_1_2_PIN A0
+#define VOLTAGE_MEASUREMENT_PIN         A0
 #define VOLTAGE_CHANNEL                  0
 #define OHM_PIN                         A1
 #define OHM_CHANNEL                      1
 #define VOLTAGE_GROUND_PIN              A2
 #define RESISTOR_3_PIN                  A3
+
+#if !defined(ADC_INTERNAL_REFERENCE_MILLIVOLT)
+#define ADC_INTERNAL_REFERENCE_MILLIVOLT    1100L   // can be adjusted by measuring the voltage at the AREF pin
+#endif
 
 // Fixed attenuator for voltage measurement
 #ifndef RESISTOR_TO_VOLTAGE_PIN_KOHM
@@ -78,8 +85,6 @@
 #ifndef RESISTOR_FROM_VOLTAGE_PIN_TO_GROUND_PIN_KOHM
 #define RESISTOR_FROM_VOLTAGE_PIN_TO_GROUND_PIN_KOHM  22 // R2
 #endif
-// Voltage measurement: Threshold input voltage to switch to 1.1 volt reference
-#define INPUT_MILLIVOLT_FOR_OUTPUT_1_VOLT ((1000L * (RESISTOR_TO_VOLTAGE_PIN_KOHM + RESISTOR_FROM_VOLTAGE_PIN_TO_GROUND_PIN_KOHM)) / RESISTOR_FROM_VOLTAGE_PIN_TO_GROUND_PIN_KOHM)
 
 // fixed resistors for resistor measurement
 #ifndef RESISTOR_2_TO_VCC_KOHM
@@ -88,6 +93,12 @@
 #define RESISTOR_1_TO_VCC_KOHM    RESISTOR_TO_VOLTAGE_PIN_KOHM // R1
 #define REFERENCE_SWITCHING_VOLTAGE_THRESHOLD_MILLIVOLT 1050L // Resistor measurement: if the input voltage is below this value, use the internal 1.1 volt reference
 
+struct ResistanceMeasurementResultStruct {
+    uint32_t ResistanceOhm;
+    float VoltageAtResistor;
+    bool isOverflow;
+};
+
 #define STR_HELPER(x) #x
 #define STR(x) STR_HELPER(x)
 
@@ -95,17 +106,16 @@
 void setVoltageMode();
 uint16_t measureVoltage(uint16_t tVCCVoltageMillivolt);
 void setResistorMode();
-uint32_t measureResistance(uint16_t tVCCVoltageMillivolt, uint16_t *rInputVoltageAddress);
+bool measureResistance(uint16_t aVCCVoltageMillivolt, ResistanceMeasurementResultStruct *aResistanceMeasurementResult);
 void MeasureVoltageAndResistance();
 void printVoltageAndResistanceUsage();
 
 //#define DEBUG
 
 void setVoltageMode() {
-    pinMode(VOLTAGE_IN_AND_RESISTOR_1_2_PIN, INPUT);
+    pinMode(VOLTAGE_MEASUREMENT_PIN, INPUT);
     pinMode(RESISTOR_3_PIN, INPUT);
-    pinMode(VOLTAGE_GROUND_PIN, OUTPUT);
-    digitalWrite(VOLTAGE_GROUND_PIN, LOW);
+    pinMode(VOLTAGE_GROUND_PIN, INPUT);
 }
 
 uint16_t measureVoltage(uint16_t tVCCVoltageMillivolt) {
@@ -114,25 +124,34 @@ uint16_t measureVoltage(uint16_t tVCCVoltageMillivolt) {
     /*
      * We must wait for ADC channel to switch from VCC measurement channel to A0 channel
      */
-    checkAndWaitForReferenceAndChannelToSwitch(VOLTAGE_CHANNEL, DEFAULT);
-    uint16_t tInputVoltageRaw = readADCChannelWithReference(VOLTAGE_CHANNEL, DEFAULT);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 
-    uint16_t tInputVoltageMillivolt = (tVCCVoltageMillivolt * (uint32_t) tInputVoltageRaw
-            * (RESISTOR_TO_VOLTAGE_PIN_KOHM + RESISTOR_FROM_VOLTAGE_PIN_TO_GROUND_PIN_KOHM))
-            / (1023 * RESISTOR_FROM_VOLTAGE_PIN_TO_GROUND_PIN_KOHM);
-
-    if (tInputVoltageMillivolt < INPUT_MILLIVOLT_FOR_OUTPUT_1_VOLT) {
+    uint16_t tInputVoltageMillivolt = getVoltageMillivolt(tVCCVoltageMillivolt, VOLTAGE_CHANNEL);
+    if (tInputVoltageMillivolt >= tVCCVoltageMillivolt) {
         /*
-         * voltage at ADC input is below 1.0 volt, so we can switch to
-         * the internal 1.1 volt reference to get a better resolution (around 4 times better => ~ 6 mV)
+         * Voltage > VCC -> enable Attenuator
          */
-        checkAndWaitForReferenceAndChannelToSwitch(VOLTAGE_CHANNEL, INTERNAL);
-        tInputVoltageRaw = readADCChannelWithReference(VOLTAGE_CHANNEL, INTERNAL);
-        tInputVoltageMillivolt = (1100L * tInputVoltageRaw
+        pinMode(VOLTAGE_GROUND_PIN, OUTPUT);
+        digitalWrite(VOLTAGE_GROUND_PIN, LOW);
+        tInputVoltageMillivolt = getVoltageMillivolt(tVCCVoltageMillivolt, VOLTAGE_CHANNEL);
+        tInputVoltageMillivolt = (((uint32_t) tInputVoltageMillivolt)
                 * (RESISTOR_TO_VOLTAGE_PIN_KOHM + RESISTOR_FROM_VOLTAGE_PIN_TO_GROUND_PIN_KOHM))
-                / (1023 * RESISTOR_FROM_VOLTAGE_PIN_TO_GROUND_PIN_KOHM);
+                / (RESISTOR_FROM_VOLTAGE_PIN_TO_GROUND_PIN_KOHM);
+    } else {
+        /*
+         * Voltage at ADC input is below VCC
+         */
+        if (tInputVoltageMillivolt < (ADC_INTERNAL_REFERENCE_MILLIVOLT - 50)) {
+            /*
+             * Voltage at ADC input is below 1.05 volt, so we can switch to
+             * the internal 1.1 volt reference to get a better resolution (around 4 times better => ~ 1 mV)
+             */
+            tInputVoltageMillivolt = getVoltageMillivoltWith_1_1VoltReference(VOLTAGE_CHANNEL);
 //        tVoltageRange = 1;
+        }
     }
+#pragma GCC diagnostic pop
 #ifdef DEBUG
         Serial.print(F("Raw="));
         Serial.println(tInputVoltageRaw);
@@ -142,11 +161,11 @@ uint16_t measureVoltage(uint16_t tVCCVoltageMillivolt) {
 
 void setResistorMode() {
     pinMode(VOLTAGE_GROUND_PIN, INPUT);
-    pinMode(VOLTAGE_IN_AND_RESISTOR_1_2_PIN, OUTPUT); // == VOLTAGE_PIN
-    digitalWrite(VOLTAGE_IN_AND_RESISTOR_1_2_PIN, HIGH);
+    pinMode(VOLTAGE_MEASUREMENT_PIN, OUTPUT);
+    digitalWrite(VOLTAGE_MEASUREMENT_PIN, HIGH);
 }
 
-uint32_t measureResistance(uint16_t aVCCVoltageMillivolt, uint16_t *rInputVoltageAddress) {
+bool measureResistance(uint16_t aVCCVoltageMillivolt, ResistanceMeasurementResultStruct *aResistanceMeasurementResult) {
     setResistorMode();
 
 //uint8_t tResistanceRange = 0;
@@ -154,12 +173,12 @@ uint32_t measureResistance(uint16_t aVCCVoltageMillivolt, uint16_t *rInputVoltag
     /*
      * We must wait for ADC channel to switch from VCC measurement channel to A1 channel
      */
-    checkAndWaitForReferenceAndChannelToSwitch(OHM_CHANNEL, DEFAULT);
-    uint16_t tInputReading = readADCChannelWithReference(OHM_CHANNEL, DEFAULT);
+    uint16_t tInputReading = waitAndReadADCChannelWithReference(OHM_CHANNEL, DEFAULT);
     uint16_t tInputVoltage = (uint32_t) tInputReading * aVCCVoltageMillivolt / 1023;
     uint16_t tReadingAtVCC = 1023;
     uint32_t tRxOhm;
 
+    aResistanceMeasurementResult->isOverflow = false;
     if (tInputVoltage > REFERENCE_SWITCHING_VOLTAGE_THRESHOLD_MILLIVOLT) {
         if (tReadingAtVCC > tInputReading) {
             tRxOhm = (RESISTOR_1_TO_VCC_KOHM * 1000L * tInputReading) / (tReadingAtVCC - tInputReading);
@@ -167,9 +186,11 @@ uint32_t measureResistance(uint16_t aVCCVoltageMillivolt, uint16_t *rInputVoltag
             // Clip at 10 MOhm
             if (tRxOhm > 9999999) {
                 tRxOhm = 9999999;
+                aResistanceMeasurementResult->isOverflow = true;
             }
         } else {
             tRxOhm = 9999999;
+            aResistanceMeasurementResult->isOverflow = true;
         }
     } else {
 //    tResistanceRange = 1;
@@ -178,8 +199,7 @@ uint32_t measureResistance(uint16_t aVCCVoltageMillivolt, uint16_t *rInputVoltag
          * This happens at around 28 kOhm (at 4.7 volt) depending on the current value of VCC
          * Here we have a resolution of 24 to 37 Ohm
          */
-        checkAndWaitForReferenceAndChannelToSwitch(OHM_CHANNEL, INTERNAL);
-        tInputReading = readADCChannelWithReference(OHM_CHANNEL, INTERNAL);
+        tInputReading = waitAndReadADCChannelWithReference(OHM_CHANNEL, INTERNAL);
 
         // The compensated VCC reading at 1.1 volt reference
         tReadingAtVCC = (aVCCVoltageMillivolt * 1023L) / 1100;
@@ -206,8 +226,7 @@ uint32_t measureResistance(uint16_t aVCCVoltageMillivolt, uint16_t *rInputVoltag
             pinMode(RESISTOR_3_PIN, OUTPUT);
             digitalWrite(RESISTOR_3_PIN, HIGH);
             delay(2);
-            checkAndWaitForReferenceAndChannelToSwitch(OHM_CHANNEL, INTERNAL);
-            tInputReading = readADCChannelWithReference(OHM_CHANNEL, INTERNAL);
+            tInputReading = waitAndReadADCChannelWithReference(OHM_CHANNEL, INTERNAL);
             tRxOhm = (((RESISTOR_1_TO_VCC_KOHM * RESISTOR_2_TO_VCC_KOHM) / (RESISTOR_1_TO_VCC_KOHM + RESISTOR_2_TO_VCC_KOHM))
                     * 1000L * tInputReading) / (tReadingAtVCC - tInputReading);
             digitalWrite(RESISTOR_3_PIN, LOW);
@@ -223,118 +242,113 @@ uint32_t measureResistance(uint16_t aVCCVoltageMillivolt, uint16_t *rInputVoltag
     Serial.println(F(" LSB"));
 #endif
 
-    *rInputVoltageAddress = tInputVoltage;
-    return tRxOhm;
+    aResistanceMeasurementResult->VoltageAtResistor = ((float) tInputVoltage) / 1000.0;
+    aResistanceMeasurementResult->ResistanceOhm = tRxOhm;
+
+    /*
+     * Set all outputs back to inputs
+     */
+    setVoltageMode();
+
+    return aResistanceMeasurementResult->isOverflow;
 }
 
 /*
  * Convenience function
- * For LCD output, it requires the macros USE_LCD and USE_2004_LCD to be set
+ * First voltage is measured.
+ * If voltage is zero, then resistance to ground is measured using 5 volt (VCC) and 10 kOhm or 100 kOhm supply.
+ * For LCD output, the macros USE_LCD and USE_2004_LCD must be set
  */
+char sOverflowString[9] = "Overflow";
 void MeasureVoltageAndResistance() {
+    ResistanceMeasurementResultStruct tResistanceMeasurementResult;
+
+    // to enable discharge of stray capacitance
+    pinMode(VOLTAGE_MEASUREMENT_PIN, OUTPUT);
+    digitalWrite(VOLTAGE_GROUND_PIN, LOW);
 #ifdef DEBUG
     uint16_t tVCCVoltageMillivolt = printVCCVoltageMillivolt(&Serial);
 #else
     uint16_t tVCCVoltageMillivolt = getVCCVoltageMillivolt();
 #endif
     uint16_t tInputVoltageMillivolt = measureVoltage(tVCCVoltageMillivolt);
+    char tStringForPrint[9];
 
-    if (tInputVoltageMillivolt > 0) {
+    if (tInputVoltageMillivolt > 4) {
         /*
          * Print voltage result
          */
         float tInputVoltage = tInputVoltageMillivolt;
         tInputVoltage /= 1000;
-        char tString[8];
         // The dtostrf() requires around 2.1 kByte code
-        dtostrf(tInputVoltage, 6, 3, tString);
-        Serial.print(tString);
-        Serial.println(F(" V "));
+        dtostrf(tInputVoltage, 8, 3, tStringForPrint); // to have the same layout as for kOhm
+        Serial.print(tStringForPrint);
+        Serial.println(F(" V"));
 
-        /*
-         * This can reduce code size if formatting requirements are relaxed and dtostrf() is only used here
-         */
-//        if (tInputVoltageMillivolt >= 1000) {
-//            Serial.print(tInputVoltageMillivolt / 1000);
-//            tInputVoltageMillivolt %= 1000;
-//            Serial.print('.');
-//            Serial.print(tInputVoltageMillivolt % 1000);
-//            Serial.print(F(" V "));
-//        } else {
-//            Serial.print(tInputVoltageMillivolt);
-//            Serial.print(F(" mV "));
-//        }
 #if defined(USE_LCD)
 #  if defined(USE_2004_LCD)
         myLCD.setCursor(0, 3);
-        myLCD.print(F("  "));
-        myLCD.print(tString);
-        myLCD.print(F(" V          "));
+        myLCD.print(tStringForPrint);
+#    ifndef NO_PRINT_OF_RESISTOR_MEASURMENT_VOLTAGE
+        myLCD.print(F(" V          ")); // clears old resistor output
+#    else
+        myLCD.print(F(" V ")); // clears old resistor output
+#    endif
 #  else
         myLCD.setCursor(0, 0);
-        myLCD.print(tString);
-        myLCD.print(F(" V        "));
+        myLCD.print(tStringForPrint);
+        myLCD.print(F(" V      "));
         myLCD.setCursor(0, 1);
         myLCD.print(F("                "));
 #  endif
 #endif
     } else {
-        uint16_t tInputVoltage;
-        uint32_t tRxOhm = measureResistance(tVCCVoltageMillivolt, &tInputVoltage);
-
         /*
-         * Format Ohm output
+         * Print kiloOhm output
          */
-        float tResistance = tRxOhm;
-        char tString[9];
-
-        tResistance /= 1000;
-        dtostrf(tResistance, 8, 3, tString);
-        Serial.print(tString);
-        Serial.print(F(" kOhm at "));
+        char *tPrintStringPointer;
+        if (measureResistance(tVCCVoltageMillivolt, &tResistanceMeasurementResult)) {
+            tPrintStringPointer = sOverflowString;
+        } else {
+            float tResistance = tResistanceMeasurementResult.ResistanceOhm;
+            tResistance /= 1000;
+            dtostrf(tResistance, 8, 3, tStringForPrint);
+            tPrintStringPointer = tStringForPrint;
+        }
+        Serial.print(tPrintStringPointer);
+        Serial.print(F(" kOhm"));
 
 #if defined(USE_LCD)
 #  if defined(USE_2004_LCD)
         myLCD.setCursor(0, 3);
-        myLCD.print(tString);
-        myLCD.print(F(" k\xF4 @"));
+        myLCD.print(tPrintStringPointer);
+        myLCD.print(F(" k\xF4"));
 #  else
         myLCD.setCursor(0, 0);
-        myLCD.print(tString);
+        myLCD.print(tPrintStringPointer);
         myLCD.print(F(" k\xF4    "));
 #  endif
 #endif
-
-        /*
-         * This can reduce code size if formatting requirements are relaxed and dtostrf() is only used here
-         */
-//        if (tRxOhm >= 1000) {
-//            Serial.print(tRxOhm / 1000);
-//            tRxOhm %= 1000;
-//            Serial.print('.');
-//            Serial.print(tRxOhm % 1000);
-//            Serial.print(F(" kOhm at "));
-//        } else {
-//            Serial.print(tRxOhm);
-//            Serial.print(F(" Ohm at "));
-//        }
-        // the sprintf_P() function requires 1.4 kByte code
-        sprintf_P(tString, PSTR("%4u"), tInputVoltage);
-        Serial.print(tString);
-        Serial.println(F(" mV "));
+#ifndef NO_PRINT_OF_RESISTOR_MEASURMENT_VOLTAGE
+        Serial.print(F(" at: "));
+        Serial.print(tResistanceMeasurementResult.VoltageAtResistor, 3);
+        Serial.println(F(" V"));
 //        Serial.println(tResistanceRange);
 
-#if defined(USE_LCD)
-#  if defined(USE_2004_LCD)
-        myLCD.print(tString);
-        myLCD.print(F(" mV"));
-#  else
+#  if defined(USE_LCD)
+#    if defined(USE_2004_LCD)
+        myLCD.print(F(" @"));
+        myLCD.print(tResistanceMeasurementResult.VoltageAtResistor, 3);
+        myLCD.print(F(" V"));
+#    else
         myLCD.setCursor(0, 1);
         myLCD.print(F("at: "));
-        myLCD.print(tString);
-        myLCD.print(F(" mV     "));
+        myLCD.print(tResistanceMeasurementResult.VoltageAtResistor, 3);
+        myLCD.print(F(" V     "));
+#    endif
 #  endif
 #endif
+        Serial.println();
     }
 }
 
@@ -343,45 +357,34 @@ void printVoltageAndResistanceUsage() {
      * Print usage
      */
     Serial.println();
-    Serial.println(F("Connect " STR(OHM_PIN) " with 100 kOhm to Input"));
-    Serial.println(F("Connect input with " STR(RESISTOR_1_TO_VCC_KOHM) " kOhm to " STR(VOLTAGE_PIN)));
+    Serial.println(F("Connect " STR(OHM_PIN) " with 100 kOhm to input"));
+    Serial.println(F("Connect input with " STR(RESISTOR_1_TO_VCC_KOHM) " kOhm to " STR(VOLTAGE_MEASUREMENT_PIN)));
     Serial.println(F("Connect input with " STR(RESISTOR_2_TO_VCC_KOHM) " kOhm to " STR(RESISTOR_3_PIN)));
     Serial.println(
             F(
-                    "Connect " STR(VOLTAGE_PIN) " with " STR(RESISTOR_FROM_VOLTAGE_PIN_TO_GROUND_PIN_KOHM) " kOhm to " STR(VOLTAGE_GROUND_PIN)));
+                    "Connect " STR(VOLTAGE_MEASUREMENT_PIN) " with " STR(RESISTOR_FROM_VOLTAGE_PIN_TO_GROUND_PIN_KOHM) " kOhm to " STR(VOLTAGE_GROUND_PIN)));
     Serial.println();
-    Serial.println(F("Resistance measurement pin is " STR(OHM_PIN)));
-    Serial.println();
+
     /*
-     * get VCC
+     * get VCC and print resolution
      */
     delay(200);
     Serial.println(F("Test VCC reading 2 times. Resolution is only 20 mV!"));
     printVCCVoltageMillivolt(&Serial);
     delay(100);
     uint16_t tVCCVoltageMillivolt = printVCCVoltageMillivolt(&Serial);
-    Serial.println(F("Voltage measurement pin is " STR(VOLTAGE_PIN)));
+    Serial.println(F("Voltage measurement pin is " STR(VOLTAGE_MEASUREMENT_PIN)));
     Serial.print(F("Maximum input voltage is "));
     Serial.print(
             (tVCCVoltageMillivolt * (uint32_t) ((RESISTOR_TO_VOLTAGE_PIN_KOHM + RESISTOR_FROM_VOLTAGE_PIN_TO_GROUND_PIN_KOHM)))
                     / RESISTOR_FROM_VOLTAGE_PIN_TO_GROUND_PIN_KOHM);
-    Serial.println(F(" mV"));
-    Serial.print(F("Resolution is "));
+    Serial.print(F(" mV with resolution of "));
     Serial.print(
             (tVCCVoltageMillivolt * (uint32_t) ((RESISTOR_TO_VOLTAGE_PIN_KOHM + RESISTOR_FROM_VOLTAGE_PIN_TO_GROUND_PIN_KOHM)))
                     / (1023 * RESISTOR_FROM_VOLTAGE_PIN_TO_GROUND_PIN_KOHM));
-    Serial.print(F(" mV, below "));
-    Serial.print(
-            (1000L * (RESISTOR_TO_VOLTAGE_PIN_KOHM + RESISTOR_FROM_VOLTAGE_PIN_TO_GROUND_PIN_KOHM))
-                    / RESISTOR_FROM_VOLTAGE_PIN_TO_GROUND_PIN_KOHM);
-    Serial.print(F(" mV resolution is "));
-    Serial.print(
-            (1100L * 100 * (RESISTOR_TO_VOLTAGE_PIN_KOHM + RESISTOR_FROM_VOLTAGE_PIN_TO_GROUND_PIN_KOHM))
-                    / (1023 * RESISTOR_FROM_VOLTAGE_PIN_TO_GROUND_PIN_KOHM) / 100);
-    Serial.print('.');
-    Serial.print(
-            (1100L * 100 * (RESISTOR_TO_VOLTAGE_PIN_KOHM + RESISTOR_FROM_VOLTAGE_PIN_TO_GROUND_PIN_KOHM))
-                    / (1023 * RESISTOR_FROM_VOLTAGE_PIN_TO_GROUND_PIN_KOHM) % 100);
     Serial.println(F(" mV"));
+    Serial.print(F("Below "));
+    Serial.print(tVCCVoltageMillivolt);
+    Serial.println(F(" mV resolution is 5 mV, below 1050 mV resolution is 1 mV"));
     Serial.println();
 }
