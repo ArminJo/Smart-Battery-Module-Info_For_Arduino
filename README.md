@@ -1,6 +1,7 @@
 # [SMB](https://github.com/ArminJo/Smart-Battery-Module-Info_For_Arduino) - Smart Battery Module (Laptop Battery Pack) Info
 ### Version 4.0.0
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![Commits since latest](https://img.shields.io/github/commits-since/ArminJo/Smart-Battery-Module-Info_For_Arduino/latest)](https://github.com/ArminJo/Smart-Battery-Module-Info_For_Arduino/commits/master)
 [![Build Status](https://github.com/ArminJo/Smart-Battery-Module-Info_For_Arduino/workflows/TestCompile/badge.svg)](https://github.com/ArminJo/Smart-Battery-Module-Info_For_Arduino/actions)
 [![Hit Counter](https://hitcounter.pythonanywhere.com/count/tag.svg?url=https%3A%2F%2Fgithub.com%2FArminJo%2FSmart-Battery-Module-Info_For_Arduino)](https://github.com/brentvollebregt/hit-counter)
 
@@ -18,8 +19,8 @@ Download and extract the repository. In the Arduino IDE open the sketch with Fil
 
 ## Identifying the right connection
 The minimal connector layout is: | GROUND | THERMISTOR (103AT) | CLOCK | DATA | VCC (11 or 14 volt) | (clock and data my be switched).
-- The **thermistor** connection has 10 kOhms to ground at 25 degree celsius.
-- **Clock** und data connectors have the same resistance (around 1 MOhm) to ground.
+- The **thermistor** connection has 10 kOhm to ground at 25 degree celsius.
+- **Clock** und data connectors have the same resistance (around 0.3 to 1 MOhm) to ground.
 - **VCC** may not be enabled. Sometimes it gets enabled when *Host Present* is connected to ground or clock and data are pulled high to 3.3 or 5 volt.
 
 Some packs (e.g.for IBM-T41 with bq29310) require once an external voltage (e.g. 11 volt) at the VCC connector to initially get alive after full discharge condition.
@@ -35,7 +36,7 @@ Examples:
 After startup, the program scans for a connected I2C device.<br/>
 In version 4.0 a voltage and resistance measurement by means of 4 additional resistors is integrated **to identify the I2C pins**.
 It measures voltage or resistance to ground (if voltage is zero).<br/>
-**The I2c pins have around 300 kOhm to 1000 kOhm**, the thermistor 10 kOhm.
+**The I2c pins have around 300 kOhm to 1000 kOhm**, the thermistor 10 kOhm (sometimes up to 40 kOhm).
 
 You can try different I2C pin combinations until led stops blinking and `Found I2C device attached at address: 0x0B` is printed.
 If you connect clock or data  with the thermistor connector or ground, the scanning stops.<br/>
@@ -195,6 +196,7 @@ Average minutes remaining until empty: 16 h 11 min
 - Integrated voltage and resistance measurement.
 - Major improvements in I2C communication and output.
 - Detection of disconnect.
+- Improved LCD output.
 
 ### Version 3.1.1
 - Better prints at scanning.

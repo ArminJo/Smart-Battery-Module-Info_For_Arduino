@@ -308,7 +308,7 @@ BQ20Z70_PackVoltage, Pack_Voltage, &printVoltage } };
 /*
  * From the specs:
  * Its clock frequency range is 10 kHz to 100 kHz.
- * The charger must NOT charge a battery when it senses the resistance between the Safety Signal pin and ground to be in the range between 425 and 3150 ohms.
+ * The charger must NOT charge a battery when it senses the resistance between the Safety Signal pin and ground to be in the range between 425 and 3150 ohm.
  * E.g. NiMH battery may use a 103AT thermistor for this.
  * Only Read Word, Write Word, Read Block or Write Block protocol is used.
  * bq2084 spec: With SMBus, the most-significant bit (MSB) of a data byte is transmitted first.
@@ -784,16 +784,15 @@ void printCapacity(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription,
         myLCD.print(sDesignCapacity);
         if (sCapacityModePower) {
             myLCD.print('0'); // here we have units of 10 mWh
+            myLCD.print("->");
+        } else {
+            myLCD.print(" -> ");
         }
-        myLCD.print(" -> ");
 //        if (tPercent < 100) {
 //            myLCD.print(' ');
 //        }
         myLCD.print(aCapacity);
-        if (sCapacityModePower) {
-            myLCD.print('0'); // here we have units of 10 mWh
-        }
-        myLCD.print((getCapacityModeUnit() + 1));
+        myLCD.print((getCapacityModeUnit()));
         myLCD.print('h');
 
         Serial.print(" = ");
