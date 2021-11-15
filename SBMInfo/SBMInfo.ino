@@ -460,6 +460,8 @@ bool checkForAttachedI2CDevice() {
         Serial.print(F("Transmission error code="));
         if (tRetCode == 2) {
             Serial.print(F("\"address send, NACK received. Device not connected?\""));
+        } else if (tRetCode == 5) {
+            Serial.print(F("\"timeout while waiting until twi is ready\""));
         } else {
             Serial.print(tRetCode);
         }
@@ -474,7 +476,7 @@ bool checkForAttachedI2CDevice() {
 uint8_t scanForAttachedI2CDevice(void) {
     static unsigned int sScanCount = 0;
     int tFoundAdress = SBM_INVALID_ADDRESS;
-    for (uint8_t tI2CAddress = 0; tI2CAddress < 127; tI2CAddress++) {
+    for (uint_fast8_t tI2CAddress = 0; tI2CAddress < 127; tI2CAddress++) {
         Wire.beginTransmission(tI2CAddress);
         uint8_t tOK = Wire.endTransmission(true);
         if (tOK == 0) {
@@ -1001,7 +1003,7 @@ void printBatteryStatus(struct SBMFunctionDescriptionStruct *aSBMFunctionDescrip
 
 void printFunctionDescriptionArray(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint8_t aLengthOfArray,
         bool aOnlyPrintIfValueChanged) {
-    for (uint8_t i = 0; i < aLengthOfArray && sGlobalReadError == 0; ++i) {
+    for (uint_fast8_t i = 0; i < aLengthOfArray && sGlobalReadError == 0; ++i) {
         readWordAndPrint(aSBMFunctionDescription, aOnlyPrintIfValueChanged);
         aSBMFunctionDescription++;
     }
@@ -1196,7 +1198,7 @@ void printSBMATRateInfo(void) {
     Serial.println();
 
     delay(20); // > 5 ms for bq2085-V1P3
-    for (uint8_t i = 1; i < (sizeof(sSBMATRateFunctionDescriptionArray) / sizeof(SBMFunctionDescriptionStruct)); ++i) {
+    for (uint_fast8_t i = 1; i < (sizeof(sSBMATRateFunctionDescriptionArray) / sizeof(SBMFunctionDescriptionStruct)); ++i) {
         readWordAndPrint(&sSBMATRateFunctionDescriptionArray[i], false);
     }
 }

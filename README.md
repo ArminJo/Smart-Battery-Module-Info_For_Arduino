@@ -3,14 +3,14 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Commits since latest](https://img.shields.io/github/commits-since/ArminJo/Smart-Battery-Module-Info_For_Arduino/latest)](https://github.com/ArminJo/Smart-Battery-Module-Info_For_Arduino/commits/master)
 [![Build Status](https://github.com/ArminJo/Smart-Battery-Module-Info_For_Arduino/workflows/TestCompile/badge.svg)](https://github.com/ArminJo/Smart-Battery-Module-Info_For_Arduino/actions)
-[![Hit Counter](https://hitcounter.pythonanywhere.com/count/tag.svg?url=https%3A%2F%2Fgithub.com%2FArminJo%2FSmart-Battery-Module-Info_For_Arduino)](https://github.com/brentvollebregt/hit-counter)
+![Hit Counter](https://visitor-badge.laobi.icu/badge?page_id=ArminJo_Smart-Battery-Module-Info_For_Arduino)
 
 Prints SBM controller info
 
-Based on https://github.com/PowerCartel/PackProbe from Power Cartel http://powercartel.com/projects/packprobe/.
+Based on the unmaintained [PackProbe program](https://github.com/PowerCartel/PackProbe) from Power Cartel http://powercartel.com/projects/packprobe/.
 
 # Disclaimer
-**I do not know how to enter full access mode, clear permanent failure or unlock any controller IC.** Unfortunally according to most datasheets, you need an unlock key.
+**I do not know how to enter full access mode, clear permanent failure or unlock any controller IC.** Unfortunately according to most datasheets, you need an unlock key.
 See also this [article from 2011](https://media.blackhat.com/bh-us-11/Miller/BH_US_11_Miller_Battery_Firmware_Public_WP.pdf).
 Extract: *Macbook batteries ship with a default unseal password (0x36720414).  This was found by reverse engineering a Macbook battery update.  On Macbook batteries, the full access mode password is also hardcoded and default (0xffffffff).* 
 
@@ -18,9 +18,10 @@ Extract: *Macbook batteries ship with a default unseal password (0x36720414).  T
 Download and extract the repository. In the Arduino IDE open the sketch with File -> Open... and select the SBMInfo folder. 
 
 ## Identifying the right connection
+Valuable information about battery pinout can also be found [here](https://www.laptopu.ro/community/laptop-battery-pinout/) or [here](https://powercartel.com/projects/packprobe/battery-connection/).<br/>
 The minimal connector layout is: | GROUND | THERMISTOR (103AT) | CLOCK | DATA | VCC (11 or 14 volt) | (clock and data my be switched).
 - The **thermistor** connection has 10 kOhm to ground at 25 degree celsius.
-- **Clock** und data connectors have the same resistance (around 0.3 to 1 MOhm) to ground.
+- **Clock** und data connectors have the same resistance (around 0.3 to 1 MOhm) to ground and are next to each other.
 - **VCC** may not be enabled. Sometimes it gets enabled when *Host Present* is connected to ground or clock and data are pulled high to 3.3 or 5 volt.
 
 Some packs (e.g.for IBM-T41 with bq29310) require once an external voltage (e.g. 11 volt) at the VCC connector to initially get alive after full discharge condition.
@@ -201,4 +202,4 @@ Average minutes remaining until empty: 16 h 11 min
 ### Version 3.1.1
 - Better prints at scanning.
 
-#### If you find this library useful, please give it a star.
+#### If you find this program useful, please give it a star.

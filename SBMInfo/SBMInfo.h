@@ -1,7 +1,7 @@
 /*
  * SBMInfo.h
  *
- *  Copyright (C) 2016  Armin Joachimsmeyer
+ *  Copyright (C) 2016-2021  Armin Joachimsmeyer
  *  armin.joachimsmeyer@gmail.com
  */
 

@@ -7,7 +7,10 @@
 
 # This is the name of the workflow, visible on GitHub UI.
 name: TestCompile
-on: push
+on:
+  workflow_dispatch: # To run it manually
+    description: 'manual build check'
+  push:
 jobs:
   build:
     name: Test compiling examples for UNO
