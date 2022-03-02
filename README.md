@@ -1,5 +1,5 @@
 # [SMB](https://github.com/ArminJo/Smart-Battery-Module-Info_For_Arduino) - Smart Battery Module (Laptop Battery Pack) Info
-### Version 4.0.0
+### Version 4.1.0
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Commits since latest](https://img.shields.io/github/commits-since/ArminJo/Smart-Battery-Module-Info_For_Arduino/latest)](https://github.com/ArminJo/Smart-Battery-Module-Info_For_Arduino/commits/master)
 [![Build Status](https://github.com/ArminJo/Smart-Battery-Module-Info_For_Arduino/workflows/TestCompile/badge.svg)](https://github.com/ArminJo/Smart-Battery-Module-Info_For_Arduino/actions)
@@ -109,7 +109,7 @@ Version 4.0 from Oct 12 2021
 No LiPo supply detected -> fast display timing
 Found attached I2C device at 0xB
 
-Battery mode (BIN)                  0b110000010000001
+Battery mode                        0x6081 | 0b110000010000001
                                     - Internal Charge Controller Supported
                                     - Battery OK
                                     - Disable AlarmWarning broadcast to Host and Smart Battery Charger
@@ -125,46 +125,47 @@ Design voltage                      10.800 V
 Design capacity                     5100 mAh
 Charging current                    3570 mA
 Charging voltage                    12.600 V
-Specification info                  33 | 0x21
+SBM protocol (Version / Revision)   1.1 with optional PEC support / 1
 Cycle count                         277
 
 Max error of charge calculation     100%
 Remaining time alarm                10 min
 Remaining capacity alarm            510 mAh
-Pack status (BIN)                   0b11010110000
 
 *** MANUFACTURER INFO ***
-Device Type: 0 | 0x0
+Device Type                         0 | 0x0
 
 *** RATE TEST INFO ***
 Setting AT rate to                  100 mA
 TimeToFull at rate                  Battery not being (dis)charged - received 0xFFFF
 Setting AT rate to                  -100 mA
 TimeToEmpty at rate                 21 h 28 min
-Can be delivered for 10 seconds at rate: 1 | 0x1
+Can be delivered for 10 seconds at rate  1 | 0x1
 
 *** DYNAMIC INFO ***
-Full charge capacity                4215 mAh = 82%
-Remaining capacity                  2148 mAh
 Relative charge                     51%
 Absolute charge                     42%
+Full charge capacity                4215 mAh = 82%
+Remaining capacity                  2148 mAh
 Voltage                             11.467 V
 Current                             0 mA
 Average current of last minute      0 mA
 Temperature                         21.55 C
 Minutes remaining until empty       Battery not being (dis)charged - received 0xFFFF
-Average minutes remaining until empty: Battery not being (dis)charged - received 0xFFFF
+Average minutes remaining until empty  Battery not being (dis)charged - received 0xFFFF
 Minutes remaining for full charge   Battery not being (dis)charged - received 0xFFFF
-Battery status (BIN)                0b11000000
+Battery status                      0xC0 | 0b11000000
                                     80 Initialized
                                     40 Discharging
 
+Pack config and status              0x6B | 0b11010110000
+
 
 *** DYNAMIC NON STANDARD INFO ***
-Cell 1 Voltage:                     3.826 V
-Cell 2 Voltage:                     3.823 V
-Cell 3 Voltage:                     3.819 V
-Cell 4 Voltage:                     0.000 V
+Cell 1 Voltage                      3.826 V
+Cell 2 Voltage                      3.823 V
+Cell 3 Voltage                      3.819 V
+Cell 4 Voltage                      0x0
 
 *** CHANGED VALUES ***
 
@@ -193,6 +194,10 @@ Average minutes remaining until empty: 16 h 11 min
 ![Fritzing schematics](extras/SBMInfo_Schaltplan.png)
 
 # Revision History
+### Version 4.1.0
+- Support for automatic discharge and charge.
+- Improved output.
+
 ### Version 4.0.0
 - Integrated voltage and resistance measurement.
 - Major improvements in I2C communication and output.

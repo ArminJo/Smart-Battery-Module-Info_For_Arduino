@@ -27,10 +27,10 @@
 #define TEMPERATURE             0x08
 #define VOLTAGE                 0x09
 #define CURRENT                 0x0A
-#define AverageCurrent          0x0B // of last minute
-#define MAX_ERROR               0x0C // Byte - of state of charge calculation
+#define AVERAGE_CURRENT         0x0B // of last minute
+#define MAX_ERROR               0x0C // byte - of state of charge calculation
 
-#define RELATIVE_SOC            0x0D // Byte - relative charge
+#define RELATIVE_SOC            0x0D // byte - relative charge
 #define ABSOLUTE_SOC            0x0E // Byte
 #define REMAINING_CAPACITY      0x0F
 #define FULL_CHARGE_CAPACITY    0x10
@@ -62,7 +62,20 @@
 #define CELL2_VOLTAGE           0x3E   // r/w Word - OptionalMfgFunction2
 #define CELL1_VOLTAGE           0x3F   // r/w Word - OptionalMfgFunction1
 
-#define STATE_OF_HEALTH         0x4F   // in % Byte - = CELL1_VOLTAGE for bq2085
+#define STATE_OF_HEALTH         0x4F   // in % byte - = CELL1_VOLTAGE for bq2085
+
+/*
+ * Bits of PackStatus
+ */
+#define PRESENCE                        0x80
+#define EDV2_THRESHOLD                  0x40
+#define SEALED_STATE                    0x20
+// FCC cannot be reduced by more than 256 mAh or increased by more than 512 mAh during any single update cycle.
+#define VDQ_DISCHARGE_QUALIFIED_FOR_CAPACITY_LEARNING  0x10
+#define AFE_COMMUNICATION_FAILED        0x08
+#define PERMANENT_FAILURE_FLAG          0x04
+#define CVOV_SECONDARY_OVER_VOLTAGE_PROTECTION_EXCEEDED   0x02
+#define CVUV_SECONDARY_UNDER_VOLTAGE_PROTECTION_EXCEEDED  0x01
 
 /*
  * Bits of BatteryMode
@@ -98,17 +111,18 @@ struct SBMFunctionDescriptionStruct {
     const char *Description;
     void (*ValueFormatter)(struct SBMFunctionDescriptionStruct * aDescription, uint16_t aValueToFormat); // no println() at the end!
     const char *DescriptionLCD; // if output value should also be printed on LCD
-    uint8_t minDeltaValue; // 0 -> print always. Do not print if difference between current value and last value is less equal minDeltaValue
-    uint16_t lastValue; // used as storage for last value
+    uint8_t minDeltaValueToPrint; // 0 -> print always. Do not print if difference between current value and last value is less equal minDeltaValueToPrint
+    uint16_t lastPrintedValue; // used as storage for last value
 };
 
 /*
  * TI few ManufacturerAccess Commands
  */
-//#define TI_Device_Type             0x0100
-#define TI_Device_Type             0x0001
-#define TI_Firmware_Version        0x0002
+//#define TI_Device_Type                0x0100
+#define TI_Device_Type                  0x0001
+#define TI_Firmware_Version             0x0002
 
+#define BQ2085_EndOfDischargelevel      0x0003
 #define BQ20Z70_Hardware_Version        0x0003
 #define BQ40Z50_Hardware_Version        0x0003
 
