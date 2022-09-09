@@ -20,8 +20,8 @@ Download and extract the repository. In the Arduino IDE open the sketch with Fil
 ## Identifying the right connection
 Valuable information about battery pinout can also be found [here](https://www.laptopu.ro/community/laptop-battery-pinout/) or [here](https://powercartel.com/projects/packprobe/battery-connection/).<br/>
 The minimal connector layout is: | GROUND | THERMISTOR (103AT) | CLOCK | DATA | VCC (11 or 14 volt) | (clock and data my be switched).
-- The **thermistor** connection has 10 kOhm to ground at 25 degree celsius.
-- **Clock** und data connectors have the same resistance (around 0.3 to 1 MOhm) to ground and are next to each other.
+- The **thermistor** connection has 10 k&ohm; to ground at 25 degree celsius.
+- **Clock** und data connectors have the same resistance (around 0.3 to 1 M&ohm;) to ground and are next to each other.
 - **VCC** may not be enabled. Sometimes it gets enabled when *Host Present* is connected to ground or clock and data are pulled high to 3.3 or 5 volt.
 
 Some packs (e.g.for IBM-T41 with bq29310) require once an external voltage (e.g. 11 volt) at the VCC connector to initially get alive after full discharge condition.
@@ -37,7 +37,7 @@ Examples:
 After startup, the program scans for a connected I2C device.<br/>
 In version 4.0 a voltage and resistance measurement by means of 4 additional resistors is integrated **to identify the I2C pins**.
 It measures voltage or resistance to ground (if voltage is zero).<br/>
-**The I2c pins have around 300 kOhm to 1000 kOhm**, the thermistor 10 kOhm (sometimes up to 40 kOhm).
+**The I2c pins have around 300 k&ohm; to 1000 k&ohm;**, the thermistor 10 k&ohm; (sometimes up to 40 k&ohm;).
 
 You can try different I2C pin combinations until led stops blinking and `Found I2C device attached at address: 0x0B` is printed.
 If you connect clock or data  with the thermistor connector or ground, the scanning stops.<br/>
@@ -80,7 +80,7 @@ Basiert auf https://github.com/PowerCartel/PackProbe von Power Cartel http://pow
 
 ## Finden der Anschlüsse.
 In der Version 4.0 ist eine Spannungs und Widerstandsmessung mittels 4 Widerständen integriert, um die I2C Pins zu identifizieren.
-Die Clock und Data Eingänge waren bei meinen Packs die Anschlüsse mit einem Widerstand von ca. 300 k bis 1 MOhm nach Masse.
+Die Clock und Data Eingänge waren bei meinen Packs die Anschlüsse mit einem Widerstand von ca. 300 k bis 1 M&ohm; nach Masse.
 Nach dem Booten sucht das Programm nach einem angeschlossenen I2C Device.
 Man kann also alle möglichen Pinkombinationen von Clock und Data am Battery Pack ausprobieren.
 Bei der Richtigen hört das Blinken der Led auf und es kommt sofort die Ausgabe `Found I2C device attached at address: 0x0B` und direkt danach werden die Daten ausgegeben.
@@ -90,7 +90,7 @@ Wenn mehr als 5 Kontakte vorhanden waren, waren sie wie folgt belegt:
 - Masse und Plus doppelt. z.B. + | + | Thermistor | Data | Clock | - | -
 - Ein Enable (nur im Laptop mit Masse verbunden) und eine Signal Anschluss (nur im Battery Pack mit Masse verbunden). z.B. VCC | VCC | CLOCK | DATA | Signal | Enable | THERMISTOR | GROUND | GROUND |
 
-Der Thermo-Sensor Anschluss war uneinheitlich, mal nicht messbar beschaltet, mal 1 MOhm, mal 1,6 Volt, mal 10 kOhm nach Masse.
+Der Thermo-Sensor Anschluss war uneinheitlich, mal nicht messbar beschaltet, mal 1 M&ohm;, mal 1,6 Volt, mal 10 k&ohm; nach Masse.
 
 Zur Verbindung mit den Kontakten habe ich normales 1,5 qmm Kupferkabel aus der Hausinstallation genommen, dessen eines Ende ich mit einem Hammer etwas plattgeklopft hab. Stecknadeln oder Breadboard Wires gehen auch.
 
@@ -169,7 +169,7 @@ Cell 4 Voltage                      0x0
 
 *** CHANGED VALUES ***
 
---- Next values are from another Pack! I connected 22 Ohm Resistor -> 699 mA discharging
+--- Next values are from another Pack! I connected 22 ohm Resistor -> 699 mA discharging
 
 Voltage                             15.788 V
 Average current of last minute      -187 mA

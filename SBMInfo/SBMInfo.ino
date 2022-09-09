@@ -20,7 +20,7 @@
  *  GNU General Public License for more details.
 
  *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see <http://www.gnu.org/licenses/gpl.html>.
+ *  along with this program. If not, see <http://www.gnu.org/licenses/gpl.html>.
  *
  */
 
@@ -28,7 +28,6 @@
 
 #include "SBMInfo.h"
 #include <Wire.h>
-#include "ADCUtils.h"
 
 #define VERSION_EXAMPLE "4.1"
 
@@ -153,6 +152,7 @@ uint8_t sI2CDataBuffer[DATA_BUFFER_LENGTH];
 
 uint8_t sI2CDeviceAddress = SBM_DEVICE_ADDRESS; // >= 128 means invalid
 
+void LCDPrintSpaces(uint8_t aNumberOfSpacesToPrint);
 void LCDClearLine(uint8_t aLineNumber);
 
 void prettyPrintDescription(const char *aDescription);
@@ -172,7 +172,7 @@ void printPackStatus(struct SBMFunctionDescriptionStruct *aSBMFunctionDescriptio
 void printBatteryStatus(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint16_t aStatus);
 void printSpecificationInfo(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint16_t aSpecificationInfo);
 void printManufacturerDate(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint16_t aDate);
-void printVoltage(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint16_t aVoltage);
+void printVoltage(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint16_t aVoltageMillivolt);
 void printCellVoltage(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint16_t aVoltage);
 void printCurrent(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint16_t aCurrent);
 void printTemperature(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint16_t aTemperature);
@@ -261,9 +261,9 @@ VOLTAGE, Voltage, &printVoltage, "", VOLTAGE_PRINT_DELTA_MILLIVOLT } /* Descript
 CURRENT, Current, &printCurrent, "", VOLTAGE_PRINT_DELTA_MILLIAMPERE } /* DescriptionLCD must be not NULL */, {
 AVERAGE_CURRENT, Average_Current_of_last_minute, &printCurrent, NULL, 5 } /* Print only changes of 5 mA or more */, {
 TEMPERATURE, Temperature, &printTemperature, NULL, VOLTAGE_PRINT_DELTA_MILLIDEGREE }, {
-RUN_TIME_TO_EMPTY, Minutes_remaining_until_empty, &printTime, " min to empty" }, {
+RUN_TIME_TO_EMPTY, Minutes_remaining_until_empty, &printTime, " min " }, {
 AVERAGE_TIME_TO_EMPTY, Average_minutes_remaining_until_empty, &printTime }, {
-TIME_TO_FULL, Minutes_remaining_for_full_charge, &printTime, " min to full " }, {
+TIME_TO_FULL, Minutes_remaining_for_full_charge, &printTime, " min " }, {
 BATTERY_STATUS, Battery_Status, &printBatteryStatus }, {
 PACK_STATUS, Pack_Status, &printPackStatus } };
 
@@ -287,17 +287,17 @@ CELL3_VOLTAGE, Cell_3_Voltage, &printCellVoltage, NULL, VOLTAGE_PRINT_DELTA_MILL
 CELL4_VOLTAGE, Cell_4_Voltage, &printCellVoltage, NULL, VOLTAGE_PRINT_DELTA_MILLIVOLT }, {
 STATE_OF_HEALTH, State_of_Health } };
 
-bool sCapacityModePower; // false = current, true = power
-uint16_t sDesignVoltage; // to retrieve last value for mWh to mA conversion
-uint16_t sDesignCapacity; // to compute relative capacity percent
-uint16_t sDesignCapacitymAh; // for LCD output
-//uint16_t sRemainingCapacitymAh; // for LCD output of cell voltage instead of time to empty
-uint16_t sRelativeCharge; // for LCD output of cell voltage instead of time to empty
-int16_t sCurrent; // to decide if print "time to" values
-uint16_t sMinutesRemainingUntilFullOrEmpty;
+bool sCapacityModePower;                // false = current, true = power
+uint16_t sDesignVoltageMillivolt;       // to retrieve last value for mWh to mA conversion
+uint16_t sDesignCapacity;               // to compute relative capacity percent
+uint16_t sDesignCapacitymAh;            // for LCD output
+uint16_t sRelativeChargePercent;        // for LCD output of cell voltage instead of time to full or empty
+unsigned long sLastLCDTimePrintMillis;  // for LCD output of cell voltage instead of time to full or empty
+int16_t sCurrentMilliampere;            // to decide if print "time to" values
 uint8_t sGlobalReadError;
 uint8_t sLastGlobalReadError;
-bool sPrintOnlyChanges; // Is set to true after the setup / initial print
+bool sPrintOnlyChanges;                 // Is set to true after the setup / initial print
+uint16_t sLastNoLoadVoltageMillivolt;   // to compute ESR
 
 /*
  * This changes the display behavior to the standalone version.
@@ -352,7 +352,7 @@ void setup() {
     pinMode(FORCE_LCD_DISPLAY_TIMING_PIN, INPUT_PULLUP);
 
     Serial.begin(115200);
-#if defined(__AVR_ATmega32U4__) || defined(SERIAL_PORT_USBVIRTUAL) || defined(SERIAL_USB) || defined(SERIALUSB_PID) || defined(ARDUINO_attiny3217)
+#if defined(__AVR_ATmega32U4__) || defined(SERIAL_PORT_USBVIRTUAL) || defined(SERIAL_USB) /*stm32duino*/|| defined(USBCON) /*STM32_stm32*/|| defined(SERIALUSB_PID) || defined(ARDUINO_attiny3217)
     delay(4000); // To be able to connect Serial monitor after reset or power up and before first print out. Do not wait for an attached Serial Monitor!
 #endif
     // Just to know which program is running on my Arduino
@@ -615,7 +615,7 @@ void writeCommandWithRetry(uint8_t aCommand) {
 uint16_t readWord(uint8_t aCommand) {
     writeCommandWithRetry(aCommand);
     if (sGlobalReadError != 0) {
-#ifdef DEBUG
+#if defined(DEBUG)
         Serial.print(F("Error at I2C access "));
         Serial.println(sGlobalReadError);
 #endif
@@ -654,7 +654,7 @@ uint8_t readBlock(uint8_t aCommand, uint8_t *aDataBufferPtr, uint8_t aDataBuffer
 // First read length of data
     uint8_t tLengthOfData = Wire.read();
 
-#ifdef DEBUG
+#if defined(DEBUG)
 Serial.println();
 Serial.print(F("tLengthOfData="));
 Serial.println(tLengthOfData);
@@ -676,7 +676,7 @@ Serial.println(tLengthOfData);
          */
         writeCommandWithRetry(aCommand);
 
-#ifdef DEBUG
+#if defined(DEBUG)
     uint8_t tNumberOfDataReceived = Wire.requestFrom(sI2CDeviceAddress, (uint8_t) (tLengthOfData + 1)); // +1 since the length is read again
     Serial.print(F("tNumberOfDataReceived="));
     Serial.println(tNumberOfDataReceived);
@@ -828,7 +828,7 @@ void printRelativeCharge(struct SBMFunctionDescriptionStruct *aSBMFunctionDescri
     } else {
         digitalWrite(CHARGE_CONTROL_PIN, HIGH);
     }
-    sRelativeCharge = aPercentage;
+    sRelativeChargePercent = aPercentage;
     printPercentage(aSBMFunctionDescription, aPercentage);
 }
 
@@ -851,7 +851,7 @@ void printCapacity(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription,
     if (sCapacityModePower) {
         // print also mA since changing capacity mode did not work
         Serial.print(" | ");
-        tCapacityCurrent = (aCapacity * 10000L) / sDesignVoltage;
+        tCapacityCurrent = (aCapacity * 10000L) / sDesignVoltageMillivolt;
         Serial.print(tCapacityCurrent);
         Serial.print(StringCapacityModeCurrent);
         Serial.print('h');
@@ -895,7 +895,7 @@ void printCapacity(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription,
         myLCD.print('h');
         if (aSBMFunctionDescription->FunctionCode == REMAINING_CAPACITY) {
             myLCD.print(' ');
-            tCharacterPrinted += myLCD.print(sRelativeCharge) + 2;
+            tCharacterPrinted += myLCD.print(sRelativeChargePercent) + 2;
             myLCD.print('%');
         }
         tCharacterPrinted += myLCD.print(aSBMFunctionDescription->DescriptionLCD);
@@ -908,22 +908,49 @@ void printCapacity(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription,
     }
 }
 
-void printVoltage(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint16_t aVoltage) {
-    Serial.print((float) aVoltage / 1000, 3);
+void printVoltage(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint16_t aVoltageMillivolt) {
+    Serial.print((float) aVoltageMillivolt / 1000, 3);
     Serial.print(" V");
 
     if (aSBMFunctionDescription->DescriptionLCD != NULL) {
         if (aSBMFunctionDescription->FunctionCode == DESIGN_VOLTAGE) {
             // store for global use
-            sDesignVoltage = aVoltage;
+            sDesignVoltageMillivolt = aVoltageMillivolt;
             myLCD.setCursor(0, 3);
         } else /*if (aSBMFunctionDescription->FunctionCode == VOLTAGE)*/{
 //            // Print 8 spaces from 0 to 7
 //            myLCD.setCursor(0, 0);
-//            myLCD.print("         "); // clear old value from 0 to 8 incl. trailing space
+//            LCDPrintSpaces(9); // clear old value from 0 to 8 incl. trailing space
+            if (sCurrentMilliampere == 0) {
+                sLastNoLoadVoltageMillivolt = aVoltageMillivolt;
+            } else {
+                /*
+                 * Compute ESR, resolution is 0.008 ohm
+                 */
+                // first compute integer value
+                int16_t tVoltageDifference = (int16_t) aVoltageMillivolt - (int16_t) sLastNoLoadVoltageMillivolt;
+                float tESROhm = (float) tVoltageDifference / sCurrentMilliampere;
+                // We read voltage before current, so it may become negative if load was detached
+                if (tESROhm > 0) {
+//                Serial.print(F(" | (aVoltageMillivolt="));
+//                Serial.print(aVoltageMillivolt);
+//                Serial.print(F(" - sLastNoLoadVoltageMillivolt="));
+//                Serial.print(sLastNoLoadVoltageMillivolt);
+//                Serial.print(F(") / sCurrentMilliampere = "));
+//                Serial.print(sCurrentMilliampere);
+                    Serial.print(F(" | ESR = "));
+                    Serial.print(tESROhm, 3);
+                    Serial.print(F(" ohm"));
+                    myLCD.setCursor(11, 2);
+                    myLCD.print(' ');
+                    myLCD.print(tESROhm, 3);
+                    myLCD.print(" \xF4 "); // ohm
+                }
+            }
+
             myLCD.setCursor(0, 0);
         }
-        myLCD.print((float) aVoltage / 1000, 3);
+        myLCD.print((float) aVoltageMillivolt / 1000, 3);
         myLCD.print(" V");
     }
 }
@@ -938,11 +965,12 @@ void printCellVoltage(struct SBMFunctionDescriptionStruct *aSBMFunctionDescripti
         }
 #endif
 
-        // cell voltages in row 3. 100 was not reached for a bq2084
-        if (!sPrintOnlyChanges || sRelativeCharge == 0 || sRelativeCharge >= 99) {
+        // cell voltages in row 3. 100 was not reached for a bq2084. Print if time (minutes) is not updated for more than 2 minutes.
+        if (!sPrintOnlyChanges || sRelativeChargePercent == 0 || sRelativeChargePercent > 99
+                || millis() - sLastLCDTimePrintMillis > 120000) {
             uint8_t tCellNumber = (aSBMFunctionDescription->FunctionCode - CELL4_VOLTAGE); // 0 to 3 for cell 4 to 1
             uint8_t tCellIndex = 3 - tCellNumber;
-            if (sDesignVoltage < 13000) {
+            if (sDesignVoltageMillivolt < 13000) {
                 // 3 cell voltages
                 myLCD.setCursor(tCellIndex * 7, 2);
             } else {
@@ -950,7 +978,7 @@ void printCellVoltage(struct SBMFunctionDescriptionStruct *aSBMFunctionDescripti
                 myLCD.setCursor(tCellIndex * 5, 2);
             }
 
-            if (sDesignVoltage < 13000) {
+            if (sDesignVoltageMillivolt < 13000) {
                 // 3 cell voltages
                 myLCD.print((float) aVoltage / 1000, 3);
                 myLCD.print('V');
@@ -975,14 +1003,17 @@ void printCurrent(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, 
     char tString[6];
 
     int tCurrent = (int) aCurrent; // current can be negative
-    sCurrent = tCurrent;
+    if (aSBMFunctionDescription->FunctionCode == CURRENT) {
+        sCurrentMilliampere = tCurrent;
+    }
 
     Serial.print(tCurrent);
     Serial.print(" mA");
     if (aSBMFunctionDescription->DescriptionLCD != NULL) {
         // print 7 character from 12 to 18
         myLCD.setCursor(9, 0);
-        myLCD.print("           "); // clear old value from 9 to 19 incl. leading and trailing spaces
+        LCDPrintSpaces(11);
+        ; // clear old value from 9 to 19 incl. leading and trailing spaces
         myLCD.setCursor(11, 0);
         sprintf_P(tString, PSTR("%4d"), tCurrent);
         myLCD.print(tString);
@@ -1010,12 +1041,14 @@ void printTime(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uin
         if (tHour > 0) {
             Serial.print(tHour);
             Serial.print(" h ");
-            if (aSBMFunctionDescription->DescriptionLCD != NULL && sCurrent != 0) {
+            if (aSBMFunctionDescription->DescriptionLCD != NULL && sCurrentMilliampere != 0) {
                 // clip LCD display at 99h59min
                 if (aMinutes > ((100 * 60) - 1)) {
                     tHour = 99;
                 }
-                LCDClearLine(2);
+                myLCD.setCursor(0, 2);
+                LCDPrintSpaces(11);
+                myLCD.setCursor(0, 2);
                 myLCD.print(tHour);
                 myLCD.print(" h ");
             }
@@ -1025,13 +1058,16 @@ void printTime(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uin
         // Minutes
         Serial.print(aMinutes);
         Serial.print(" min");
-        if (aSBMFunctionDescription->DescriptionLCD != NULL && sCurrent != 0) {
+        if (aSBMFunctionDescription->DescriptionLCD != NULL && sCurrentMilliampere != 0) {
             if (tHour == 0) {
-                LCDClearLine(2);
+                myLCD.setCursor(0, 2);
+                LCDPrintSpaces(11);
+                myLCD.setCursor(0, 2);
             }
 
             myLCD.print(aMinutes);
             myLCD.print(aSBMFunctionDescription->DescriptionLCD);
+            sLastLCDTimePrintMillis = millis();
         }
     }
 }
@@ -1230,7 +1266,7 @@ void printSBMStaticInfo(void) {
 
     if (sVCCisLIPO) {
         delay(5000);
-    }else {
+    } else {
         delay(1000);
     }
     myLCD.clear();
@@ -1350,7 +1386,7 @@ void printSBMATRateInfo(void) {
     if (sCapacityModePower) {
         // print also mA since changing capacity mode did not work
         Serial.print(" | ");
-        tmA = (100 * 10000L) / sDesignVoltage;
+        tmA = (100 * 10000L) / sDesignVoltageMillivolt;
         Serial.print(tmA);
         Serial.print(StringCapacityModeCurrent);
     }
@@ -1412,8 +1448,14 @@ bool testReadAndPrint() {
     return true;
 }
 
+void LCDPrintSpaces(uint8_t aNumberOfSpacesToPrint) {
+    for (uint8_t var = 0; var < aNumberOfSpacesToPrint; ++var) {
+        myLCD.print(' ');
+    }
+}
+
 void LCDClearLine(uint8_t aLineNumber) {
     myLCD.setCursor(0, aLineNumber);
-    myLCD.print("                    ");
+    LCDPrintSpaces(20);
     myLCD.setCursor(0, aLineNumber);
 }
