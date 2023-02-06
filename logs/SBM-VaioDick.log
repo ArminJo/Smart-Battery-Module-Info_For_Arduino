@@ -1,0 +1,69 @@
+START ../src/SBMInfo.cpp
+Version 4.0 from Oct 16 2021
+No LiPo supply detected -> fast display timing
+Found attached I2C device at 0x0B
+
+*** STATIC INFO ***
+Battery mode (BIN)                  0b1000000000000000
+                                    - Battery OK
+                                    - Using power (10mWh) instead of current (mAh)
+
+Manufacturer Name                   Sony Corp.
+Chemistry                           LION
+Manufacturer Data                   0x30 39 35 
+Device Name                         VGP-BPS8   
+Serial number                       4 | 0x4
+Manufacture date (YYYY-MM-DD)       2010-3-15
+Design voltage                      11.100 V
+Design capacity                     66600 mWh | 6000 mAh
+Charging current                    3800 mA
+Charging voltage                    12.600 V
+Specification info                  49 | 0x31
+Cycle count                         106
+
+Max error of charge calculation     0%
+Remaining time alarm                10 min
+Remaining capacity alarm            7320 mWh | 659 mAh
+Pack status (BIN)                   0b11101
+
+*** MANUFACTURER INFO ***
+Device Type: 256 | 0x100
+Firmware Version: 2.0
+Hardware Version: 0x300
+
+Manufacturer Status (BIN): 0b110
+- FET Status 0
+- State: 0b110
+
+*** RATE TEST INFO ***
+Setting AT rate to                  1000 mW | 90 mA
+TimeToFull at rate                  Battery not being (dis)charged - received 0xFFFF
+Setting AT rate to                  -1000 mW | -90 mA
+TimeToEmpty at rate                 Battery not being (dis)charged - received 0xFFFF
+Can be delivered for 10 seconds at rate: 65535 | 0xFFFF - received 0xFFFF
+
+*** DYNAMIC INFO ***
+Full charge capacity                66550 mWh | 5995 mAh = 99% - received 0x19FF
+Remaining capacity                  00 mWh | 0 mAh
+Relative charge                     0%
+Absolute charge                     0%
+Voltage                             5.476 V
+Current                             0 mA
+Average current of last minute      0 mA
+Temperature                         20.15 C
+Minutes remaining until empty       Battery not being (dis)charged - received 0xFFFF
+Average minutes remaining until empty: Battery not being (dis)charged - received 0xFFFF
+Minutes remaining for full charge   534 h 40 min
+Battery status (BIN)                0b1010010000
+                                    - REMAINING_CAPACITY_ALARM
+                                    80 Initialized
+                                    10 Fully Discharged
+
+
+*** DYNAMIC NON STANDARD INFO ***
+Cell 1 Voltage:                     0.000 V
+Cell 2 Voltage:                     34.312 V
+Cell 3 Voltage:                     32.768 V
+Cell 4 Voltage:                     2.287 V
+
+*** CHANGED VALUES ***

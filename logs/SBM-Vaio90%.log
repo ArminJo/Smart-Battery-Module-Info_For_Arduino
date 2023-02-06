@@ -1,0 +1,68 @@
+START ../src/SBMInfo.cpp
+Version 4.0 from Mar  2 2022
+Configured to stop discharge at 3480 mV
+No LiPo supply detected -> fast display timing
+Found attached I2C device at 0x0B
+
+*** STATIC INFO ***
+Battery mode                        0x8001 | 0b1000000000000001
+                                    - Internal Charge Controller Supported
+                                    - Battery OK
+                                    - Using power (10mWh) instead of current (mAh)
+
+Manufacturer Name                   Sony Corp.
+Chemistry                           LION
+Manufacturer Data                   0xA B 23 
+Device Name                         VGP-BPS22
+Serial number                       162 | 0xA2
+Manufacture date (YYYY-MM-DD)       2011-3-12
+Design voltage                      11.100 V
+Design capacity                     42180 mWh | 3800 mAh
+Charging current                    1500 mA
+Charging voltage                    12.480 V
+SBM protocol (Version / Revision)   1.0 / 0
+Cycle count                         305
+
+Max error of charge calculation     0%
+Remaining time alarm                10 min
+Remaining capacity alarm            4220 mWh | 380 mAh
+
+*** MANUFACTURER INFO ***
+Device Type                         512 | 0x200
+
+*** RATE TEST INFO ***
+Setting AT rate to                  1000 mW | 90 mA
+TimeToFull at rate                  Battery not being (dis)charged - received 0xFFFF
+Setting AT rate to                  -1000 mW | -90 mA
+TimeToEmpty at rate                 Battery not being (dis)charged - received 0xFFFF
+Can be delivered for 10 seconds at rate  1 | 0x1
+
+*** DYNAMIC INFO ***
+Relative charge                     99%
+Absolute charge                     78%
+Full charge capacity                38630 mWh | 3480 mAh = 91%
+Remaining capacity                  38240 mWh | 3445 mAh
+Voltage                             12.314 V
+Current                             0 mA
+Average current of last minute      0 mA
+Temperature                         23.35 C
+Minutes remaining until empty       192 h 17 min
+Average minutes remaining until empty  467 h 0 min
+Minutes remaining for full charge   Battery not being (dis)charged - received 0xFFFF
+Battery status (BIN)                0xC0 | 0b11000000
+                                    80 Initialized
+                                    40 Discharging
+
+Pack config and status              0xD | 0b1101
+                                    - Pack not inserted
+                                    - Voltage > EDV2
+                                    - Pack unsealed
+
+
+*** DYNAMIC NON STANDARD INFO ***
+Cell 1 Voltage                      
+Cell 2 Voltage                      65.282 V
+Cell 3 Voltage                      32.768 V
+
+*** CHANGED VALUES ***
+Voltage                             12.313 V

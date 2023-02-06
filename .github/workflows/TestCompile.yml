@@ -1,7 +1,7 @@
 # TestCompile.yml
 # Github workflow script to test compile all examples of an Arduino library repository.
 #
-# Copyright (C) 2020  Armin Joachimsmeyer
+# Copyright (C) 2020-2022  Armin Joachimsmeyer
 # https://github.com/ArminJo/Github-Actions
 #
 
@@ -11,6 +11,12 @@ on:
   workflow_dispatch: # To run it manually
     description: 'manual build check'
   push:
+    paths:
+    - '**.ino'
+    - '**.cpp'
+    - '**.hpp'
+    - '**.h'
+    - '**TestCompile.yml'
 jobs:
   build:
     name: Test compiling examples for UNO

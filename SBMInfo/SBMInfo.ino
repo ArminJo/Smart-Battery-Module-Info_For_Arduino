@@ -16,8 +16,8 @@
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ *  See the GNU General Public License for more details.
 
  *  You should have received a copy of the GNU General Public License
  *  along with this program. If not, see <http://www.gnu.org/licenses/gpl.html>.
@@ -53,15 +53,18 @@
 #endif
 
 /*
- * Activate the type of LCD you use
+ * Activate the type of LCD connection you use.
+ * If no element selected, only serial output is generated.
  */
 #define USE_PARALLEL_LCD // Uses pin 3 to 8
-//#define USE_SERIAL_LCD
-/*
- * Define the size of your LCD
- */
-//#define USE_1602_LCD // no support for 1602 yet
-#define USE_2004_LCD
+//#define USE_SERIAL_LCD // Currently not available, since LiquidCrystal_I2C does not support write of byte arrays
+
+#if defined(USE_SERIAL_LCD) && defined(USE_PARALLEL_LCD)
+#error Cannot use parallel and serial LCD simultaneously
+#endif
+#if defined(USE_SERIAL_LCD) || defined(USE_PARALLEL_LCD)
+#define USE_LCD
+#endif
 
 /*
  * LCD Display before device connected
@@ -93,23 +96,10 @@
 #include "LiquidCrystal.h"
 #endif
 
-#if defined(USE_1602_LCD)
-// definitions for a 1602 LCD
-#define LCD_COLUMNS 16
-#define LCD_ROWS 2
-#endif
-#if defined(USE_2004_LCD)
-// definitions for a 2004 LCD
+// Definitions required for a 2004 LCD
 #define LCD_COLUMNS 20
 #define LCD_ROWS 4
-#endif
-
-#if defined(USE_SERIAL_LCD) && defined(USE_PARALLEL_LCD)
-#error Cannot use parallel and serial LCD simultaneously
-#endif
-#if defined(USE_SERIAL_LCD) || defined(USE_PARALLEL_LCD)
-#define USE_LCD
-#endif
+#define USE_2004_LCD
 
 #if defined(USE_SERIAL_LCD)
 LiquidCrystal_I2C myLCD(0x27, LCD_COLUMNS, LCD_ROWS);  // set the LCD address to 0x27 for a 16 chars and 2 line display
@@ -117,7 +107,7 @@ LiquidCrystal_I2C myLCD(0x27, LCD_COLUMNS, LCD_ROWS);  // set the LCD address to
 #if defined(USE_PARALLEL_LCD)
 //LiquidCrystal myLCD(2, 3, 4, 5, 6, 7);
 //LiquidCrystal myLCD(7, 8, A0, A1, A2, A3);
-LiquidCrystal myLCD(7, 8, 3, 4, 5, 6);
+LiquidCrystal myLCD(7, 8, 3, 4, 5, 6); // This also clears display
 #endif
 
 #if defined(USE_VOLTAGE_AND_RESISTANCE_MEASUREMENT)
@@ -294,8 +284,8 @@ uint16_t sDesignCapacitymAh;            // for LCD output
 uint16_t sRelativeChargePercent;        // for LCD output of cell voltage instead of time to full or empty
 unsigned long sLastLCDTimePrintMillis;  // for LCD output of cell voltage instead of time to full or empty
 int16_t sCurrentMilliampere;            // to decide if print "time to" values
-uint8_t sGlobalReadError;
-uint8_t sLastGlobalReadError;
+uint8_t sGlobalI2CReadError;
+uint8_t sLastGlobalReadError = 0;
 bool sPrintOnlyChanges;                 // Is set to true after the setup / initial print
 uint16_t sLastNoLoadVoltageMillivolt;   // to compute ESR
 
@@ -362,7 +352,7 @@ void setup() {
     DIDR0 = ADC0D | ADC1D | ADC2D | ADC3D;
 
     // set up the LCD's number of columns and rows:
-    myLCD.begin(LCD_COLUMNS, LCD_ROWS);
+    myLCD.begin(LCD_COLUMNS, LCD_ROWS); // This also clears display
     myLCD.print(F("SBMInfo " VERSION_EXAMPLE "   "));
     myLCD.print(((float) getVCCVoltageMillivolt()) / 1000, 2);
     myLCD.print(F(" V"));
@@ -421,36 +411,46 @@ void setup() {
     digitalWrite(DISCHARGE_CONTROL_PIN, HIGH);
 }
 
+const char *sTWIErrorStrings[] = { "OK", "length to long for buffer", "address send, NACK received", "data send, NACK received",
+        "other error", "timeout" };
+
 void loop() {
-//    Serial.print(F("sGlobalReadError="));
-//    Serial.println(sGlobalReadError);
-    if (sGlobalReadError == 0) {
+//    Serial.print(F("sGlobalI2CReadError="));
+//    Serial.println(sGlobalI2CReadError);
+    if (sGlobalI2CReadError == 0) {
         printFunctionDescriptionArray(sSBMDynamicFunctionDescriptionArray,
                 (sizeof(sSBMDynamicFunctionDescriptionArray) / sizeof(SBMFunctionDescriptionStruct)));
         printSBMNonStandardInfo();
 
-        // clear the display of 'H' for sGlobalReadError
+        // clear the display of 'H' for sGlobalI2CReadError
         myLCD.setCursor(19, 0);
         myLCD.print(' ');
     } else {
-        // Test connection with readWord(). This sets the flag accordingly.
-        readWord(MANUFACTURER_ACCESS);
+        // Test connection with readWord(). This sets the sGlobalI2CReadError flag accordingly.
+        readWord(CYCLE_COUNT);
     }
 
     /*
-     * Manage display of sGlobalReadError
+     * Manage display of sGlobalI2CReadError
      */
-    if (sLastGlobalReadError != sGlobalReadError) {
-        sLastGlobalReadError = sGlobalReadError;
-        Serial.print(F("\r\nsGlobalReadError changed to "));
-        Serial.println(sGlobalReadError);
+    if (sLastGlobalReadError != sGlobalI2CReadError) {
+        Serial.print(F("\r\nI2C read error changed from "));
+        Serial.print(sTWIErrorStrings[sLastGlobalReadError]);
+        Serial.print('|');
+        Serial.print(sLastGlobalReadError);
+        Serial.print(F(" to "));
+        Serial.print(sTWIErrorStrings[sGlobalI2CReadError]);
+        Serial.print('|');
+        Serial.println(sGlobalI2CReadError);
         Serial.flush();
 
-        if (sGlobalReadError == 0) {
+        sLastGlobalReadError = sGlobalI2CReadError;
+
+        if (sGlobalI2CReadError == 0) {
             // print info again
             printInitialInfo();
         } else {
-            // display 'H' for sGlobalReadError
+            // display 'H' for sGlobalI2CReadError
             myLCD.setCursor(19, 0);
             myLCD.print('H');
         }
@@ -537,8 +537,8 @@ uint8_t scanForAttachedI2CDevice(void) {
         Serial.println(sScanCount);
         myLCD.setCursor(0, 2);
         myLCD.print("Scan for device ");
-        char tString[4];
-        sprintf_P(tString, PSTR("%3u"), sScanCount);
+        char tString[5];
+        sprintf_P(tString, PSTR("%4u"), sScanCount);
         myLCD.print(tString);
         sScanCount++;
     } else {
@@ -589,7 +589,7 @@ void printInitialInfo() {
 void writeCommandWithRetry(uint8_t aCommand) {
     Wire.beginTransmission(sI2CDeviceAddress);
     Wire.write(aCommand);
-    sGlobalReadError = Wire.endTransmission(false); // do not send stop, is required for some packs
+    sGlobalI2CReadError = Wire.endTransmission(false); // do not send stop, is required for some packs
     /*
      * Output   0 .. success
      *          1 .. length to long for buffer
@@ -598,12 +598,12 @@ void writeCommandWithRetry(uint8_t aCommand) {
      *          4 .. other twi error (lost bus arbitration, bus error, ..)
      *          5 .. timeout
      */
-    if (sGlobalReadError == 2) {
+    if (sGlobalI2CReadError == 2) {
         delay(I2C_RETRY_DELAY_MILLIS);
         // Try again
         Wire.beginTransmission(sI2CDeviceAddress);
         Wire.write(aCommand);
-        sGlobalReadError = Wire.endTransmission(false); // do not send stop, is required for some packs
+        sGlobalI2CReadError = Wire.endTransmission(false); // do not send stop, is required for some packs
     }
 }
 
@@ -614,10 +614,10 @@ void writeCommandWithRetry(uint8_t aCommand) {
  */
 uint16_t readWord(uint8_t aCommand) {
     writeCommandWithRetry(aCommand);
-    if (sGlobalReadError != 0) {
+    if (sGlobalI2CReadError != 0) {
 #if defined(DEBUG)
         Serial.print(F("Error at I2C access "));
-        Serial.println(sGlobalReadError);
+        Serial.println(sGlobalI2CReadError);
 #endif
         return 0xFFFF;
     } else {
@@ -751,11 +751,11 @@ void printValue(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, ui
  */
 void readWordAndPrint(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription) {
     uint16_t tCurrentValue = readWord(aSBMFunctionDescription->FunctionCode);
-    if (sGlobalReadError == 0) {
+    if (sGlobalI2CReadError == 0) {
         printValue(aSBMFunctionDescription, tCurrentValue);
     }
 
-//    if (sGlobalReadError == 0) {
+//    if (sGlobalI2CReadError == 0) {
 //        if (sPrintOnlyChanges) {
 //            if (tCurrentValue != aSBMFunctionDescription->lastPrintedValue) {
 //                // check value again, maybe it was a transmit error
@@ -776,18 +776,18 @@ void readWordAndPrint(struct SBMFunctionDescriptionStruct *aSBMFunctionDescripti
 //    }
 }
 
-void printHex(uint16_t aValue) {
+void printByteHexOnLCD(uint16_t aValue) {
     Serial.print(F("0x"));
     Serial.print(aValue, HEX);
 }
 
 void printlnHex(uint16_t aValue) {
-    printHex(aValue);
+    printByteHexOnLCD(aValue);
     Serial.println();
 }
 
 void printHexAndBinary(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint16_t aValue) {
-    printHex(aValue);
+    printByteHexOnLCD(aValue);
     Serial.print(" | 0b");
     Serial.print(aValue, BIN);
 }
@@ -900,10 +900,7 @@ void printCapacity(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription,
         }
         tCharacterPrinted += myLCD.print(aSBMFunctionDescription->DescriptionLCD);
         if (aSBMFunctionDescription->FunctionCode == REMAINING_CAPACITY) {
-            for (uint8_t i = 0; i < (LCD_COLUMNS - tCharacterPrinted); ++i) {
-                // clear old output character
-                myLCD.print(' ');
-            }
+            LCDPrintSpaces(LCD_COLUMNS - tCharacterPrinted);
         }
     }
 }
@@ -995,7 +992,7 @@ void printCellVoltage(struct SBMFunctionDescriptionStruct *aSBMFunctionDescripti
 
         printVoltage(aSBMFunctionDescription, aVoltage);
     } else {
-        printHex(aVoltage);
+        printByteHexOnLCD(aVoltage);
     }
 }
 
@@ -1094,7 +1091,7 @@ void printManufacturerDate(struct SBMFunctionDescriptionStruct *aSBMFunctionDesc
 
 void printSpecificationInfo(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint16_t aSpecificationInfo) {
     if (aSpecificationInfo >= 0x40) {
-        printHex(aSpecificationInfo);
+        printByteHexOnLCD(aSpecificationInfo);
         Serial.print(F(" | "));
     }
     uint8_t tSpecificationInfo = aSpecificationInfo;
@@ -1219,7 +1216,7 @@ void printBatteryStatus(struct SBMFunctionDescriptionStruct *aSBMFunctionDescrip
 }
 
 void printFunctionDescriptionArray(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint8_t aLengthOfArray) {
-    for (uint_fast8_t i = 0; i < aLengthOfArray && sGlobalReadError == 0; ++i) {
+    for (uint_fast8_t i = 0; i < aLengthOfArray && sGlobalI2CReadError == 0; ++i) {
         readWordAndPrint(aSBMFunctionDescription);
         aSBMFunctionDescription++;
     }
@@ -1355,7 +1352,7 @@ void printSBMManufacturerInfo(void) {
 }
 
 void printSBMNonStandardInfo() {
-    if (sNonStandardInfoSupportedByPack != NON_STANDARD_INFO_NOT_SUPPORTED && sGlobalReadError == 0) {
+    if (sNonStandardInfoSupportedByPack != NON_STANDARD_INFO_NOT_SUPPORTED && sGlobalI2CReadError == 0) {
         if (sNonStandardInfoSupportedByPack == NON_STANDARD_INFO_NOT_INTIALIZED) {
             /*
              * very simple check if non standard info supported by pack
@@ -1373,7 +1370,7 @@ void printSBMNonStandardInfo() {
 
         printFunctionDescriptionArray(sSBMNonStandardFunctionDescriptionArray,
                 (sizeof(sSBMNonStandardFunctionDescriptionArray) / sizeof(SBMFunctionDescriptionStruct)));
-        sGlobalReadError = 0; // I have seen some read errors here
+        sGlobalI2CReadError = 0; // I have seen some read errors here
     }
 }
 
@@ -1426,7 +1423,7 @@ bool testReadAndPrint() {
 
     if (tTestResult == 0xFFFF) {
         Serial.print(F("Test read address "));
-        printHex(sRegisterAddress);
+        printByteHexOnLCD(sRegisterAddress);
         Serial.print('=');
         printlnHex(tTestResult);
 
@@ -1449,7 +1446,7 @@ bool testReadAndPrint() {
 }
 
 void LCDPrintSpaces(uint8_t aNumberOfSpacesToPrint) {
-    for (uint8_t var = 0; var < aNumberOfSpacesToPrint; ++var) {
+    for (uint_fast8_t i = 0; i < aNumberOfSpacesToPrint; ++i) {
         myLCD.print(' ');
     }
 }

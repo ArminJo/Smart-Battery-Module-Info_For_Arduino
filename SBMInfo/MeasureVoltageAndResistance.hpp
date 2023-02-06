@@ -16,8 +16,8 @@
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ *  See the GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program. If not, see <http://www.gnu.org/licenses/gpl.html>.
@@ -79,7 +79,7 @@
 #define RESISTOR_3_PIN                  A3
 
 #if !defined(ADC_INTERNAL_REFERENCE_MILLIVOLT)
-#define ADC_INTERNAL_REFERENCE_MILLIVOLT    1100L   // can be adjusted by measuring the voltage at the AREF pin
+#define ADC_INTERNAL_REFERENCE_MILLIVOLT    1100L // Change to value measured at the AREF pin. If value > real AREF voltage, measured values are > real values
 #endif
 
 // Fixed attenuator for voltage measurement
