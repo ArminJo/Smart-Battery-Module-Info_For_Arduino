@@ -19,7 +19,7 @@ on:
     - '**TestCompile.yml'
 jobs:
   build:
-    name: Test compiling examples for UNO
+    name: Test compiling examples for Uno
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

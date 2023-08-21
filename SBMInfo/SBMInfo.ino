@@ -116,6 +116,8 @@ LiquidCrystal myLCD(7, 8, 3, 4, 5, 6); // This also clears display
 #include "MeasureVoltageAndResistance.hpp"
 #endif
 
+#include "WireUtils.hpp"
+
 #define FORCE_LCD_DISPLAY_TIMING_PIN 11 // if pulled to ground, enables slow display timing as used for standalone mode (with LiPo supply)
 
 /*
@@ -176,8 +178,6 @@ void printSBMATRateInfo(void);
 
 void printInitialInfo();
 
-bool checkForAttachedI2CDevice();
-uint8_t scanForAttachedI2CDevice();
 bool testReadAndPrint();
 
 void TogglePin(uint8_t aPinNr);
@@ -381,7 +381,7 @@ void setup() {
      * Check for I2C device attached.
      * Devices which require some time to wakeup, will be found later with scanForAttachedI2CDevice()
      */
-    if (checkForAttachedI2CDevice()) {
+    if (checkForAttachedI2CDevice(&Serial, SBM_DEVICE_ADDRESS)) {
         sI2CDeviceAddress = SBM_DEVICE_ADDRESS;
     } else {
         Serial.println(F("Start scanning for device at I2C bus"));
@@ -391,8 +391,23 @@ void setup() {
              * Check for I2C device and blink until device attached
              * This sets the I2C stop condition for the next commands
              */
-            sI2CDeviceAddress = scanForAttachedI2CDevice();
-            if (sI2CDeviceAddress != SBM_INVALID_ADDRESS) {
+            sI2CDeviceAddress = scanForAttachedI2CDevice(&Serial);
+            if (sI2CDeviceAddress == I2C_SCAN_TIMEOUT) {
+                myLCD.setCursor(0, 2);
+                myLCD.print(F("SDA or SCL at ground"));
+            } else if (sI2CDeviceAddress == I2C_SCAN_NO_DEVICE) {
+                myLCD.setCursor(0, 2);
+                myLCD.print("Scan for device ");
+                char tString[5];
+                sprintf_P(tString, PSTR("%4u"), sScanCount);
+                myLCD.print(tString);
+            } else if (sI2CDeviceAddress >= 0) {
+                myLCD.setCursor(0, 2);
+                myLCD.print(F("Found device at 0x"));
+                myLCD.print(sI2CDeviceAddress, HEX);
+                delay(2000);
+                // clear LCD line
+                LCDClearLine(2);
                 break;
             } else {
 #if defined(USE_VOLTAGE_AND_RESISTANCE_MEASUREMENT)
@@ -465,45 +480,6 @@ void TogglePin(uint8_t aPinNr) {
         digitalWrite(aPinNr, LOW);
     } else {
         digitalWrite(aPinNr, HIGH);
-    }
-}
-
-bool checkForAttachedI2CDevice() {
-    do {
-        Wire.beginTransmission(SBM_DEVICE_ADDRESS);
-        if (Wire.getWireTimeoutFlag()) {
-            Serial.println(F("Timeout accessing I2C bus. Wait for bus becoming available"));
-            Wire.clearWireTimeoutFlag();
-            delay(100);
-        } else {
-            break;
-        }
-    } while (true);
-
-    uint8_t tRetCode = Wire.endTransmission();
-    if (tRetCode == 0) {
-        Serial.println(F("Found attached I2C device at " STR(SBM_DEVICE_ADDRESS)));
-        Serial.flush();
-        return true;
-    } else {
-        /*
-         * Output   0 .. success
-         *          1 .. length to long for buffer
-         *          2 .. address send, NACK received
-         *          3 .. data send, NACK received
-         *          4 .. other twi error (lost bus arbitration, bus error, ..)
-         *          5 .. timeout
-         */
-        Serial.print(F("Transmission error code="));
-        if (tRetCode == 2) {
-            Serial.print(F("\"address send, NACK received. Device not connected?\""));
-        } else if (tRetCode == 5) {
-            Serial.print(F("\"timeout while waiting until twi is ready\""));
-        } else {
-            Serial.print(tRetCode);
-        }
-        Serial.println(F(" while looking for device at default address " STR(SBM_DEVICE_ADDRESS)));
-        return false;
     }
 }
 
@@ -776,18 +752,18 @@ void readWordAndPrint(struct SBMFunctionDescriptionStruct *aSBMFunctionDescripti
 //    }
 }
 
-void printByteHexOnLCD(uint16_t aValue) {
+void printByteHex(uint16_t aValue) {
     Serial.print(F("0x"));
     Serial.print(aValue, HEX);
 }
 
 void printlnHex(uint16_t aValue) {
-    printByteHexOnLCD(aValue);
+    printByteHex(aValue);
     Serial.println();
 }
 
 void printHexAndBinary(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint16_t aValue) {
-    printByteHexOnLCD(aValue);
+    printByteHex(aValue);
     Serial.print(" | 0b");
     Serial.print(aValue, BIN);
 }
@@ -992,7 +968,7 @@ void printCellVoltage(struct SBMFunctionDescriptionStruct *aSBMFunctionDescripti
 
         printVoltage(aSBMFunctionDescription, aVoltage);
     } else {
-        printByteHexOnLCD(aVoltage);
+        printByteHex(aVoltage);
     }
 }
 
@@ -1091,7 +1067,7 @@ void printManufacturerDate(struct SBMFunctionDescriptionStruct *aSBMFunctionDesc
 
 void printSpecificationInfo(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint16_t aSpecificationInfo) {
     if (aSpecificationInfo >= 0x40) {
-        printByteHexOnLCD(aSpecificationInfo);
+        printByteHex(aSpecificationInfo);
         Serial.print(F(" | "));
     }
     uint8_t tSpecificationInfo = aSpecificationInfo;
@@ -1423,7 +1399,7 @@ bool testReadAndPrint() {
 
     if (tTestResult == 0xFFFF) {
         Serial.print(F("Test read address "));
-        printByteHexOnLCD(sRegisterAddress);
+        printByteHex(sRegisterAddress);
         Serial.print('=');
         printlnHex(tTestResult);
 
