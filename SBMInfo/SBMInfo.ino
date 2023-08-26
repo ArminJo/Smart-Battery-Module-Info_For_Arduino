@@ -28,10 +28,13 @@
 
 #include "SBMInfo.h"
 #include <Wire.h>
+#include "ADCUtils.hpp"
 
 #define VERSION_EXAMPLE "4.1"
 
+#if defined(__AVR__)
 /*
+ * Available only for some AVR CPU's like ATmega328
  * This requires 4 resistors at Pins A0 to A3, see documentation in file MeasureVoltageAndResistance.hpp
  */
 #define USE_VOLTAGE_AND_RESISTANCE_MEASUREMENT
@@ -47,10 +50,10 @@
 //#define STOP_DISCHARGE_AT_PERCENTAGE
 #define DISCHARGE_STOP_MILLIVOLT      3300 // to be below the guessed EDV2 value
 #define STOP_DISCHARGE_AT_MILLIVOLT
-#if defined(STOP_DISCHARGE_AT_PERCENTAGE) && defined(STOP_DISCHARGE_AT_MILLIVOLT)
+#  if defined(STOP_DISCHARGE_AT_PERCENTAGE) && defined(STOP_DISCHARGE_AT_MILLIVOLT)
 #warning Ignore STOP_DISCHARGE_AT_MILLIVOLT value and stop discharge at DISCHARGE_STOP_PERCENTAGE value
-#else
-#endif
+# endif
+#endif // defined(__AVR__)
 
 /*
  * Activate the type of LCD connection you use.
@@ -110,7 +113,7 @@ LiquidCrystal_I2C myLCD(0x27, LCD_COLUMNS, LCD_ROWS);  // set the LCD address to
 LiquidCrystal myLCD(7, 8, 3, 4, 5, 6); // This also clears display
 #endif
 
-#if defined(USE_VOLTAGE_AND_RESISTANCE_MEASUREMENT)
+#if defined(USE_VOLTAGE_AND_RESISTANCE_MEASUREMENT) // Available only for some AVR CPU's like ATmega328
 #define NO_PRINT_OF_RESISTOR_MEASURMENT_VOLTAGE
 // Include it after LCD settings, it requires the macros USE_LCD and USE_2004_LCD to be set
 #include "MeasureVoltageAndResistance.hpp"
@@ -208,22 +211,22 @@ const char RemainingTimeAlarm[] PROGMEM = "Remaining time alarm";
 const char Battery_Mode[] PROGMEM = "Battery mode";
 const char Pack_Status[] PROGMEM = "Pack config and status";
 
-struct SBMFunctionDescriptionStruct sBatteryModeFuctionDescription = { BATTERY_MODE, Battery_Mode, &printBatteryMode };
+struct SBMFunctionDescriptionStruct sBatteryModeFuctionDescription = { BATTERY_MODE, Battery_Mode, &printBatteryMode, NULL, 0, 0 };
 /*
  * Design voltage must be read before reading other capacity values for conversion of mWh to mAh
  */
 struct SBMFunctionDescriptionStruct sSBMStaticFunctionDescriptionArray[] = { {
-SERIAL_NUM, Serial_Number }, {
-MFG_DATE, Manufacture_Date, &printManufacturerDate }, {
-DESIGN_VOLTAGE, Design_Voltage, &printVoltage, "" }, {
-DESIGN_CAPACITY, Design_Capacity, &printCapacity, "" }, {
-CHARGING_CURRENT, Charging_Current, &printCurrent }, {
-CHARGING_VOLTAGE, Charging_Voltage, &printVoltage }, {
-SPEC_INFO, Specification_Info, &printSpecificationInfo }, {
-CYCLE_COUNT, Cycle_Count, &printSigned, " cycl." }, {
-MAX_ERROR, Max_Error_of_charge_calculation, &printPercentage }, {
-REMAINING_TIME_ALARM, RemainingTimeAlarm, &printTime }, {
-REMAINING_CAPACITY_ALARM, Remaining_Capacity_Alarm, &printCapacity } };
+SERIAL_NUM, Serial_Number, NULL, NULL, 0, 0 }, {
+MFG_DATE, Manufacture_Date, &printManufacturerDate, NULL, 0, 0 }, {
+DESIGN_VOLTAGE, Design_Voltage, &printVoltage, "", 0, 0 }, {
+DESIGN_CAPACITY, Design_Capacity, &printCapacity, "", 0, 0 }, {
+CHARGING_CURRENT, Charging_Current, &printCurrent, NULL, 0, 0 }, {
+CHARGING_VOLTAGE, Charging_Voltage, &printVoltage, NULL, 0, 0 }, {
+SPEC_INFO, Specification_Info, &printSpecificationInfo, NULL, 0, 0 }, {
+CYCLE_COUNT, Cycle_Count, &printSigned, " cycl.", 0, 0 }, {
+MAX_ERROR, Max_Error_of_charge_calculation, &printPercentage, NULL, 0, 0 }, {
+REMAINING_TIME_ALARM, RemainingTimeAlarm, &printTime, NULL, 0, 0 }, {
+REMAINING_CAPACITY_ALARM, Remaining_Capacity_Alarm, &printCapacity, NULL, 0, 0 } };
 
 const char Full_Charge_Capacity[] PROGMEM = "Full charge capacity";
 const char Remaining_Capacity[] PROGMEM = "Remaining capacity";
@@ -243,19 +246,19 @@ const char Temperature[] PROGMEM = "Temperature";
 #define VOLTAGE_PRINT_DELTA_MILLIDEGREE 100   // Print only if changed by 0.1 ore more degree
 
 struct SBMFunctionDescriptionStruct sSBMDynamicFunctionDescriptionArray[] = { {
-RELATIVE_SOC, Relative_Charge, &printRelativeCharge }, { /* must be first, value is printed in Remaining_Capacity */
-ABSOLUTE_SOC, Absolute_Charge, &printPercentage }, {
-FULL_CHARGE_CAPACITY, Full_Charge_Capacity, &printCapacity, "" }/* DescriptionLCD must be not NULL */, {
-REMAINING_CAPACITY, Remaining_Capacity, &printCapacity, " remCap" }, {
-VOLTAGE, Voltage, &printVoltage, "", VOLTAGE_PRINT_DELTA_MILLIVOLT } /* DescriptionLCD must be not NULL */, {
-CURRENT, Current, &printCurrent, "", VOLTAGE_PRINT_DELTA_MILLIAMPERE } /* DescriptionLCD must be not NULL */, {
-AVERAGE_CURRENT, Average_Current_of_last_minute, &printCurrent, NULL, 5 } /* Print only changes of 5 mA or more */, {
-TEMPERATURE, Temperature, &printTemperature, NULL, VOLTAGE_PRINT_DELTA_MILLIDEGREE }, {
-RUN_TIME_TO_EMPTY, Minutes_remaining_until_empty, &printTime, " min " }, {
-AVERAGE_TIME_TO_EMPTY, Average_minutes_remaining_until_empty, &printTime }, {
-TIME_TO_FULL, Minutes_remaining_for_full_charge, &printTime, " min " }, {
-BATTERY_STATUS, Battery_Status, &printBatteryStatus }, {
-PACK_STATUS, Pack_Status, &printPackStatus } };
+RELATIVE_SOC, Relative_Charge, &printRelativeCharge, NULL, 0, 0 }, { /* must be first, value is printed in Remaining_Capacity */
+ABSOLUTE_SOC, Absolute_Charge, &printPercentage, NULL, 0, 0 }, {
+FULL_CHARGE_CAPACITY, Full_Charge_Capacity, &printCapacity, "", 0, 0 }/* DescriptionLCD must be not NULL */, {
+REMAINING_CAPACITY, Remaining_Capacity, &printCapacity, " remCap", 0, 0 }, {
+VOLTAGE, Voltage, &printVoltage, "", VOLTAGE_PRINT_DELTA_MILLIVOLT, 0 } /* DescriptionLCD must be not NULL */, {
+CURRENT, Current, &printCurrent, "", VOLTAGE_PRINT_DELTA_MILLIAMPERE, 0 } /* DescriptionLCD must be not NULL */, {
+AVERAGE_CURRENT, Average_Current_of_last_minute, &printCurrent, NULL, 5, 0 } /* Print only changes of 5 mA or more */, {
+TEMPERATURE, Temperature, &printTemperature, NULL, VOLTAGE_PRINT_DELTA_MILLIDEGREE, 0 }, {
+RUN_TIME_TO_EMPTY, Minutes_remaining_until_empty, &printTime, " min ", 0, 0 }, {
+AVERAGE_TIME_TO_EMPTY, Average_minutes_remaining_until_empty, &printTime, NULL, 0, 0 }, {
+TIME_TO_FULL, Minutes_remaining_for_full_charge, &printTime, " min ", 0, 0 }, {
+BATTERY_STATUS, Battery_Status, &printBatteryStatus, NULL, 0, 0 }, {
+PACK_STATUS, Pack_Status, &printPackStatus, NULL, 0, 0 } };
 
 /*
  * These aren't part of the standard, but work with some packs.
@@ -271,11 +274,11 @@ const char State_of_Health[] PROGMEM = "State of Health";
 #define NON_STANDARD_INFO_NOT_SUPPORTED     2
 int sNonStandardInfoSupportedByPack = NON_STANDARD_INFO_NOT_INTIALIZED;
 struct SBMFunctionDescriptionStruct sSBMNonStandardFunctionDescriptionArray[] = { {
-CELL1_VOLTAGE, Cell_1_Voltage, &printCellVoltage, NULL, VOLTAGE_PRINT_DELTA_MILLIVOLT }, {
-CELL2_VOLTAGE, Cell_2_Voltage, &printCellVoltage, NULL, VOLTAGE_PRINT_DELTA_MILLIVOLT }, {
-CELL3_VOLTAGE, Cell_3_Voltage, &printCellVoltage, NULL, VOLTAGE_PRINT_DELTA_MILLIVOLT }, {
-CELL4_VOLTAGE, Cell_4_Voltage, &printCellVoltage, NULL, VOLTAGE_PRINT_DELTA_MILLIVOLT }, {
-STATE_OF_HEALTH, State_of_Health } };
+CELL1_VOLTAGE, Cell_1_Voltage, &printCellVoltage, NULL, VOLTAGE_PRINT_DELTA_MILLIVOLT, 0 }, {
+CELL2_VOLTAGE, Cell_2_Voltage, &printCellVoltage, NULL, VOLTAGE_PRINT_DELTA_MILLIVOLT, 0 }, {
+CELL3_VOLTAGE, Cell_3_Voltage, &printCellVoltage, NULL, VOLTAGE_PRINT_DELTA_MILLIVOLT, 0 }, {
+CELL4_VOLTAGE, Cell_4_Voltage, &printCellVoltage, NULL, VOLTAGE_PRINT_DELTA_MILLIVOLT, 0 }, {
+STATE_OF_HEALTH, State_of_Health, NULL, NULL, 0, 0 } };
 
 bool sCapacityModePower;                // false = current, true = power
 uint16_t sDesignVoltageMillivolt;       // to retrieve last value for mWh to mA conversion
@@ -302,17 +305,17 @@ const char TimeToEmpty_at_rate[] PROGMEM = "TimeToEmpty at rate";
 const char Can_be_delivered_for_10_seconds_at_rate[] PROGMEM = "Can be delivered for 10 seconds at rate ";
 
 struct SBMFunctionDescriptionStruct sSBMATRateFunctionDescriptionArray[] = { {
-AtRateTimeToFull, TimeToFull_at_rate, &printTime }, {
-AtRateTimeToEmpty, TimeToEmpty_at_rate, &printTime }, {
-AtRateOK, Can_be_delivered_for_10_seconds_at_rate } };
+AtRateTimeToFull, TimeToFull_at_rate, &printTime, NULL, 0, 0 }, {
+AtRateTimeToEmpty, TimeToEmpty_at_rate, &printTime, NULL, 0, 0 }, {
+AtRateOK, Can_be_delivered_for_10_seconds_at_rate, NULL, NULL, 0, 0 } };
 
 const char Charging_Status[] PROGMEM = "Charging Status";
 const char Operation_Status[] PROGMEM = "Operation Status";
 const char Pack_Voltage[] PROGMEM = "Pack Voltage";
 struct SBMFunctionDescriptionStruct sSBMbq20z70FunctionDescriptionArray[] = { {
-BQ20Z70_ChargingStatus, Charging_Status, &printHexAndBinary }, {
-BQ20Z70_OperationStatus, Operation_Status, &printHexAndBinary }, {
-BQ20Z70_PackVoltage, Pack_Voltage, &printVoltage } };
+BQ20Z70_ChargingStatus, Charging_Status, &printHexAndBinary, NULL, 0, 0 }, {
+BQ20Z70_OperationStatus, Operation_Status, &printHexAndBinary, NULL, 0, 0 }, {
+BQ20Z70_PackVoltage, Pack_Voltage, &printVoltage, NULL, 0, 0 } };
 
 /*
  * Helper macro for getting a macro definition as string
@@ -354,8 +357,10 @@ void setup() {
     // set up the LCD's number of columns and rows:
     myLCD.begin(LCD_COLUMNS, LCD_ROWS); // This also clears display
     myLCD.print(F("SBMInfo " VERSION_EXAMPLE "   "));
+#if defined(__AVR__)
     myLCD.print(((float) getVCCVoltageMillivolt()) / 1000, 2);
     myLCD.print(F(" V"));
+#endif
 
     myLCD.setCursor(0, 1);
     myLCD.print(F(__DATE__));
@@ -371,11 +376,13 @@ void setup() {
     Serial.println(F(" mV"));
 #endif
 
+#if defined(__AVR__)
     if (getVCCVoltageMillivolt() < 4300 || digitalRead(FORCE_LCD_DISPLAY_TIMING_PIN) == LOW) {
         sVCCisLIPO = true;
     } else {
         Serial.println(F("No LiPo supply detected -> fast display timing"));
     }
+#endif
 
     /*
      * Check for I2C device attached.
@@ -391,17 +398,18 @@ void setup() {
              * Check for I2C device and blink until device attached
              * This sets the I2C stop condition for the next commands
              */
-            sI2CDeviceAddress = scanForAttachedI2CDevice(&Serial);
-            if (sI2CDeviceAddress == I2C_SCAN_TIMEOUT) {
+            int8_t tI2CDeviceAddress = scanForAttachedI2CDevice(&Serial);
+            if (tI2CDeviceAddress == I2C_SCAN_TIMEOUT) {
                 myLCD.setCursor(0, 2);
                 myLCD.print(F("SDA or SCL at ground"));
-            } else if (sI2CDeviceAddress == I2C_SCAN_NO_DEVICE) {
+            } else if (tI2CDeviceAddress == I2C_SCAN_NO_DEVICE) {
                 myLCD.setCursor(0, 2);
                 myLCD.print("Scan for device ");
                 char tString[5];
                 sprintf_P(tString, PSTR("%4u"), sScanCount);
                 myLCD.print(tString);
-            } else if (sI2CDeviceAddress >= 0) {
+            } else if (tI2CDeviceAddress >= 0) {
+                sI2CDeviceAddress = tI2CDeviceAddress;
                 myLCD.setCursor(0, 2);
                 myLCD.print(F("Found device at 0x"));
                 myLCD.print(sI2CDeviceAddress, HEX);
@@ -585,7 +593,7 @@ void writeCommandWithRetry(uint8_t aCommand) {
 
 /*
  * First write the command/function address byte, then read the word value for this function
- * From the BQ spec: The processor then sends the bq2060 device address of 0001011 (bits 7�1)
+ * From the BQ spec: The processor then sends the bq2060 device address of 0001011 (bits 7â€“1)
  *                   plus a R/W bit (bit 0) followed by an SMBus command code.
  */
 uint16_t readWord(uint8_t aCommand) {
@@ -762,7 +770,7 @@ void printlnHex(uint16_t aValue) {
     Serial.println();
 }
 
-void printHexAndBinary(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint16_t aValue) {
+void printHexAndBinary(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription  __attribute__((unused)), uint16_t aValue) {
     printByteHex(aValue);
     Serial.print(" | 0b");
     Serial.print(aValue, BIN);
@@ -994,7 +1002,7 @@ void printCurrent(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, 
     }
 }
 
-void printTemperature(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint16_t aTemperature) {
+void printTemperature(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription __attribute__((unused)), uint16_t aTemperature) {
     Serial.print((float) (aTemperature / 10.0) - 273.15);
     Serial.print(" C");
 }
@@ -1048,7 +1056,7 @@ void printTime(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uin
 /*
  * Format as ISO date
  */
-void printManufacturerDate(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint16_t aDate) {
+void printManufacturerDate(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription __attribute__((unused)), uint16_t aDate) {
 
     int tDay = aDate & 0x1F;
     int tMonth = (aDate >> 5) & 0x0F;
@@ -1065,7 +1073,7 @@ void printManufacturerDate(struct SBMFunctionDescriptionStruct *aSBMFunctionDesc
     myLCD.print(tDateAsString);
 }
 
-void printSpecificationInfo(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint16_t aSpecificationInfo) {
+void printSpecificationInfo(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription __attribute__((unused)), uint16_t aSpecificationInfo) {
     if (aSpecificationInfo >= 0x40) {
         printByteHex(aSpecificationInfo);
         Serial.print(F(" | "));
@@ -1375,7 +1383,7 @@ void printSBMATRateInfo(void) {
         // print also mA since changing capacity mode did not work
         Serial.print(" | ");
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-        Serial.print(-tmA);
+        Serial.print(-tmA); // !s initialized above, but compiler complains :-(
         Serial.print(StringCapacityModeCurrent);
     }
     Serial.println();
