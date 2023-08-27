@@ -50,6 +50,11 @@ An example schematic for a SBM module can be found in the datasheet of TI bq2931
 
 ![Simple breadboard setup](pictures/Breadboard.jpg)
 
+# Support for automatic discharge and charge
+The charge control pin (9) is high as long as relative charge is below 95%. It can be used to control a NPN transistor, which collector controls a high side P FET.<br/>
+The discharge control pin (10) is high as long as relative charge is above 5% and voltage, if available, is below 3300 mV. It can be used to control a logic level FET directly.<br/>
+The switch off values can be changed [here](https://github.com/ArminJo/Smart-Battery-Module-Info_For_Arduino/blob/master/SBMInfo/SBMInfo.ino#L42)
+
 # LCD display content
 ### LCD Display before device connected
 1. line: "SBMInfo" | Version |  VCC voltage
@@ -194,6 +199,9 @@ Average minutes remaining until empty: 16 h 11 min
 ![Fritzing schematics](extras/SBMInfo_Schaltplan.png)
 
 # Revision History
+### Version 4.2
+- Removed compile time warnings.
+ 
 ### Version 4.1.0
 - Support for automatic discharge and charge.
 - Improved output.

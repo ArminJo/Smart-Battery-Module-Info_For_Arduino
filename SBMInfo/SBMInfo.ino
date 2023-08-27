@@ -4,7 +4,7 @@
  *
  *  If a LiPo supply is detected, the LCD display timing for standalone usage (without serial connection) is activated.
  *
- *  Copyright (C) 2016-2021  Armin Joachimsmeyer
+ *  Copyright (C) 2016-2023  Armin Joachimsmeyer
  *  armin.joachimsmeyer@gmail.com
  *
  *  https://github.com/ArminJo/Smart-Battery-Module-Info_For_Arduino
@@ -30,7 +30,7 @@
 #include <Wire.h>
 #include "ADCUtils.hpp"
 
-#define VERSION_EXAMPLE "4.1"
+#define VERSION_EXAMPLE "4.2"
 
 #if defined(__AVR__)
 /*
@@ -38,22 +38,22 @@
  * This requires 4 resistors at Pins A0 to A3, see documentation in file MeasureVoltageAndResistance.hpp
  */
 #define USE_VOLTAGE_AND_RESISTANCE_MEASUREMENT
+#endif // defined(__AVR__)
 
 /*
  * The charge control pin is high as long as relative charge is below 95%.
  * It can be used to control a NPN transistor, which collector controls a high side P FET
  */
-#define CHARGE_CONTROL_PIN               9
-#define CHARGE_SWITCH_OFF_PERCENTAGE    95
-#define DISCHARGE_CONTROL_PIN           10 // Is high as long as relative charge is above 5%. Can be used to control a logic level FET directly.
-#define DISCHARGE_STOP_PERCENTAGE        5
-//#define STOP_DISCHARGE_AT_PERCENTAGE
-#define DISCHARGE_STOP_MILLIVOLT      3300 // to be below the guessed EDV2 value
-#define STOP_DISCHARGE_AT_MILLIVOLT
-#  if defined(STOP_DISCHARGE_AT_PERCENTAGE) && defined(STOP_DISCHARGE_AT_MILLIVOLT)
-#warning Ignore STOP_DISCHARGE_AT_MILLIVOLT value and stop discharge at DISCHARGE_STOP_PERCENTAGE value
-# endif
-#endif // defined(__AVR__)
+#define CHARGE_CONTROL_PIN                  9
+#define CHARGE_SWITCH_OFF_PERCENTAGE       95
+/*
+ * The discharge control pin is high as long as relative charge is above 5% AND 3300 mV. It can be used to control a logic level FET directly.
+ */
+#define DISCHARGE_CONTROL_PIN              10
+#define DISCHARGE_SWITCH_OFF_PERCENTAGE     5
+#define DISCHARGE_SWITCH_OFF_MILLIVOLT   3300 // to be below the guessed EDV2 value
+bool sCellVoltageIsBelowSwitchOffThreshold;
+void checkChargeAndDischargeLimits();
 
 /*
  * Activate the type of LCD connection you use.
@@ -124,10 +124,17 @@ LiquidCrystal myLCD(7, 8, 3, 4, 5, 6); // This also clears display
 #define FORCE_LCD_DISPLAY_TIMING_PIN 11 // if pulled to ground, enables slow display timing as used for standalone mode (with LiPo supply)
 
 /*
+ * Version 4.2 - 8/2023
+ * - Removed compile time warnings.
+ *
+ * Version 4.1 - 3/2022
+ * - Support for automatic discharge and charge.
+ * Improved output.
+ *
  * Version 4.0 - 10/2021
- * Integrated voltage and resistance measurement.
- * Major improvements in I2C communication and output.
- * Detection of disconnect.
+ * - Integrated voltage and resistance measurement.
+ * - Major improvements in I2C communication and output.
+ * - Detection of disconnect.
  *
  * Version 3.3 - 3/2021
  * - Improved standalone output.
@@ -246,7 +253,7 @@ const char Temperature[] PROGMEM = "Temperature";
 #define VOLTAGE_PRINT_DELTA_MILLIDEGREE 100   // Print only if changed by 0.1 ore more degree
 
 struct SBMFunctionDescriptionStruct sSBMDynamicFunctionDescriptionArray[] = { {
-RELATIVE_SOC, Relative_Charge, &printRelativeCharge, NULL, 0, 0 }, { /* must be first, value is printed in Remaining_Capacity */
+RELATIVE_SOC, Relative_Charge, &printRelativeCharge, NULL, 0, 0 }, { /* Must be first, because value is printed in Remaining_Capacity */
 ABSOLUTE_SOC, Absolute_Charge, &printPercentage, NULL, 0, 0 }, {
 FULL_CHARGE_CAPACITY, Full_Charge_Capacity, &printCapacity, "", 0, 0 }/* DescriptionLCD must be not NULL */, {
 REMAINING_CAPACITY, Remaining_Capacity, &printCapacity, " remCap", 0, 0 }, {
@@ -337,10 +344,11 @@ BQ20Z70_PackVoltage, Pack_Voltage, &printVoltage, NULL, 0, 0 } };
  */
 void setup() {
     pinMode(LED_BUILTIN, OUTPUT);
-    pinMode(CHARGE_CONTROL_PIN, OUTPUT);
 
-    digitalWrite(DISCHARGE_CONTROL_PIN, LOW);
+    pinMode(CHARGE_CONTROL_PIN, OUTPUT);
     pinMode(DISCHARGE_CONTROL_PIN, OUTPUT);
+    digitalWrite(CHARGE_CONTROL_PIN, LOW);
+    digitalWrite(DISCHARGE_CONTROL_PIN, LOW);
 
     pinMode(FORCE_LCD_DISPLAY_TIMING_PIN, INPUT_PULLUP);
 
@@ -351,8 +359,10 @@ void setup() {
     // Just to know which program is running on my Arduino
     Serial.println(F("START " __FILE__ "\r\nVersion " VERSION_EXAMPLE " from " __DATE__));
 
+#if defined(DIDR0)
     // Disable  digital input on all unused ADC channel pins to reduce power consumption
     DIDR0 = ADC0D | ADC1D | ADC2D | ADC3D;
+#endif
 
     // set up the LCD's number of columns and rows:
     myLCD.begin(LCD_COLUMNS, LCD_ROWS); // This also clears display
@@ -370,11 +380,12 @@ void setup() {
     Wire.setClock(32000); // lowest rate available is 31000
 //    Wire.setClock(50000); // seen this for sony packs
 
-#if defined(STOP_DISCHARGE_AT_MILLIVOLT)
-    Serial.print(F("Configured to stop discharge at "));
-    Serial.print(DISCHARGE_STOP_MILLIVOLT);
-    Serial.println(F(" mV"));
-#endif
+    Serial.print(
+            F(
+                    "Configured to set charge control pin " STR(CHARGE_CONTROL_PIN) " to low above " STR(CHARGE_SWITCH_OFF_PERCENTAGE) " %"));
+    Serial.print(
+            F(
+                    "Configured to stop discharge control pin " STR(DISCHARGE_CONTROL_PIN) " to low below " STR(DISCHARGE_SWITCH_OFF_PERCENTAGE) " % or " STR(DISCHARGE_SWITCH_OFF_MILLIVOLT) " mV"));
 
 #if defined(__AVR__)
     if (getVCCVoltageMillivolt() < 4300 || digitalRead(FORCE_LCD_DISPLAY_TIMING_PIN) == LOW) {
@@ -445,6 +456,9 @@ void loop() {
                 (sizeof(sSBMDynamicFunctionDescriptionArray) / sizeof(SBMFunctionDescriptionStruct)));
         printSBMNonStandardInfo();
 
+        // Here, all values for checking are already read in
+        checkChargeAndDischargeLimits();
+
         // clear the display of 'H' for sGlobalI2CReadError
         myLCD.setCursor(19, 0);
         myLCD.print(' ');
@@ -497,12 +511,15 @@ void TogglePin(uint8_t aPinNr) {
 uint8_t scanForAttachedI2CDevice(void) {
     static unsigned int sScanCount = 0;
     // the next 2 statements disable TWI hangup, if SDA and SCL are connected and disconnected from ground.
+#if defined(TWCR)
     TWCR = 0;
+#endif
     Wire.begin();
 
     auto tStartMillis = millis();
     int tFoundAdress = SBM_INVALID_ADDRESS;
-    for (uint_fast8_t tI2CAddress = 0; tI2CAddress < 127; tI2CAddress++) {
+    // We cannot use uint_fast8_t here, since it is ambiguous parameter for beginTransmission()  on 16/32 bit CPU
+    for (uint8_t tI2CAddress = 0; tI2CAddress < 127; tI2CAddress++) {
         Wire.beginTransmission(tI2CAddress);
         uint8_t tOK = Wire.endTransmission(true);
         if (tOK == 0) {
@@ -593,7 +610,7 @@ void writeCommandWithRetry(uint8_t aCommand) {
 
 /*
  * First write the command/function address byte, then read the word value for this function
- * From the BQ spec: The processor then sends the bq2060 device address of 0001011 (bits 7â€“1)
+ * From the BQ spec: The processor then sends the bq2060 device address of 0001011 (bits 7Ã¢â‚¬â€œ1)
  *                   plus a R/W bit (bit 0) followed by an SMBus command code.
  */
 uint16_t readWord(uint8_t aCommand) {
@@ -770,7 +787,7 @@ void printlnHex(uint16_t aValue) {
     Serial.println();
 }
 
-void printHexAndBinary(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription  __attribute__((unused)), uint16_t aValue) {
+void printHexAndBinary(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription __attribute__((unused)), uint16_t aValue) {
     printByteHex(aValue);
     Serial.print(" | 0b");
     Serial.print(aValue, BIN);
@@ -798,20 +815,25 @@ void printPercentage(struct SBMFunctionDescriptionStruct *aSBMFunctionDescriptio
 
 /*
  * Handles the charge and discharge pin
+ * Requires preceding call to printRelativeCharge() by call to printFunctionDescriptionArray(sSBMDynamicFunctionDescriptionArray,...)
  */
-void printRelativeCharge(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint16_t aPercentage) {
-#if defined(STOP_DISCHARGE_AT_PERCENTAGE)
-    if (aPercentage < DISCHARGE_SWITCH_OFF_PERCENTAGE) {
-        digitalWrite(DISCHARGE_CONTROL_PIN, LOW);
-    } else {
-        digitalWrite(DISCHARGE_CONTROL_PIN, HIGH);
-    }
-#endif
-    if (aPercentage > CHARGE_SWITCH_OFF_PERCENTAGE) {
+void checkChargeAndDischargeLimits() {
+
+    if (sRelativeChargePercent > CHARGE_SWITCH_OFF_PERCENTAGE) {
         digitalWrite(CHARGE_CONTROL_PIN, LOW);
     } else {
         digitalWrite(CHARGE_CONTROL_PIN, HIGH);
     }
+
+    if (sRelativeChargePercent < DISCHARGE_SWITCH_OFF_PERCENTAGE) {
+        digitalWrite(DISCHARGE_CONTROL_PIN, LOW);
+    } else if (!sCellVoltageIsBelowSwitchOffThreshold) {
+        digitalWrite(DISCHARGE_CONTROL_PIN, HIGH);
+    }
+
+}
+
+void printRelativeCharge(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint16_t aPercentage) {
     sRelativeChargePercent = aPercentage;
     printPercentage(aSBMFunctionDescription, aPercentage);
 }
@@ -939,12 +961,14 @@ void printVoltage(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, 
 void printCellVoltage(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint16_t aVoltage) {
     // test for sensible value
     if (aVoltage > 3000 && aVoltage < 5000) {
-#if defined(STOP_DISCHARGE_AT_MILLIVOLT)
-        if (aVoltage < DISCHARGE_STOP_MILLIVOLT) {
+        /*
+         * Check for discharge switch off. We are called for more than one cell voltage here.
+         */
+        if (aVoltage < DISCHARGE_SWITCH_OFF_MILLIVOLT) {
+            sCellVoltageIsBelowSwitchOffThreshold = true;
             digitalWrite(DISCHARGE_CONTROL_PIN, LOW);
             Serial.println(F("Stop voltage reached -> stop discharge"));
         }
-#endif
 
         // cell voltages in row 3. 100 was not reached for a bq2084. Print if time (minutes) is not updated for more than 2 minutes.
         if (!sPrintOnlyChanges || sRelativeChargePercent == 0 || sRelativeChargePercent > 99
@@ -1073,7 +1097,8 @@ void printManufacturerDate(struct SBMFunctionDescriptionStruct *aSBMFunctionDesc
     myLCD.print(tDateAsString);
 }
 
-void printSpecificationInfo(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription __attribute__((unused)), uint16_t aSpecificationInfo) {
+void printSpecificationInfo(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription __attribute__((unused)),
+        uint16_t aSpecificationInfo) {
     if (aSpecificationInfo >= 0x40) {
         printByteHex(aSpecificationInfo);
         Serial.print(F(" | "));
@@ -1352,6 +1377,7 @@ void printSBMNonStandardInfo() {
             }
         }
 
+        sCellVoltageIsBelowSwitchOffThreshold = false;
         printFunctionDescriptionArray(sSBMNonStandardFunctionDescriptionArray,
                 (sizeof(sSBMNonStandardFunctionDescriptionArray) / sizeof(SBMFunctionDescriptionStruct)));
         sGlobalI2CReadError = 0; // I have seen some read errors here

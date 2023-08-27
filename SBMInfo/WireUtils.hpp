@@ -133,11 +133,14 @@ bool checkForAttachedI2CDevice(Print *aSerial, uint8_t aI2CDeviceAddress) {
  */
 int8_t scanForAttachedI2CDevice(Print *aSerial, uint8_t aI2CAddressToStartWith) {
 // the next 2 statements disable TWI hangup, if SDA and SCL are connected and disconnected from ground.
+#if defined(TWCR)
     TWCR = 0;
+#endif
     Wire.begin();
 
     auto tStartMillis = millis();
-    for (uint_fast8_t tI2CAddress = aI2CAddressToStartWith; tI2CAddress < 127; tI2CAddress++) {
+    // We cannot use uint_fast8_t here, since it is ambiguous parameter for beginTransmission()  on 16/32 bit CPU
+    for (uint8_t tI2CAddress = aI2CAddressToStartWith; tI2CAddress < 127; tI2CAddress++) {
         Wire.beginTransmission(tI2CAddress);
         uint8_t tOK = Wire.endTransmission(true);
         if (tOK == 0) {
