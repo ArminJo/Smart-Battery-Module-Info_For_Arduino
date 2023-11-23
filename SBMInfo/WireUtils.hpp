@@ -156,7 +156,7 @@ int8_t scanForAttachedI2CDevice(Print *aSerial, uint8_t aI2CAddressToStartWith) 
         return I2C_SCAN_TIMEOUT;
     }
 
-    aSerial->print(F("Scan found no attached I2C device"));
+    aSerial->print(F("Scan found no attached I2C device. Count="));
     aSerial->println(sScanCount);
     return I2C_SCAN_NO_DEVICE;
 }

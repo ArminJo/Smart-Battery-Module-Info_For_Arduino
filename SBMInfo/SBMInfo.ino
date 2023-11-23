@@ -30,7 +30,7 @@
 #include <Wire.h>
 #include "ADCUtils.hpp"
 
-#define VERSION_EXAMPLE "4.2"
+#define VERSION_EXAMPLE "4.3"
 
 #if defined(__AVR__)
 /*
@@ -54,6 +54,8 @@
 #define DISCHARGE_SWITCH_OFF_MILLIVOLT   3300 // to be below the guessed EDV2 value
 bool sCellVoltageIsBelowSwitchOffThreshold;
 void checkChargeAndDischargeLimits();
+
+#define MILLIS_BETWEEN_READING_FOR_CHANGED_VALUES   3000
 
 /*
  * Activate the type of LCD connection you use.
@@ -124,12 +126,16 @@ LiquidCrystal myLCD(7, 8, 3, 4, 5, 6); // This also clears display
 #define FORCE_LCD_DISPLAY_TIMING_PIN 11 // if pulled to ground, enables slow display timing as used for standalone mode (with LiPo supply)
 
 /*
+ * Version 4.3 - 11/2023
+ * - Fixed no voltage measurement bug.
+ * - Improved print and LCD display after I2C reconnection.
+ *
  * Version 4.2 - 8/2023
  * - Removed compile time warnings.
  *
  * Version 4.1 - 3/2022
  * - Support for automatic discharge and charge.
- * Improved output.
+ * - Improved output.
  *
  * Version 4.0 - 10/2021
  * - Integrated voltage and resistance measurement.
@@ -380,12 +386,12 @@ void setup() {
     Wire.setClock(32000); // lowest rate available is 31000
 //    Wire.setClock(50000); // seen this for sony packs
 
-    Serial.print(
+    Serial.println(
             F(
                     "Configured to set charge control pin " STR(CHARGE_CONTROL_PIN) " to low above " STR(CHARGE_SWITCH_OFF_PERCENTAGE) " %"));
-    Serial.print(
+    Serial.println(
             F(
-                    "Configured to stop discharge control pin " STR(DISCHARGE_CONTROL_PIN) " to low below " STR(DISCHARGE_SWITCH_OFF_PERCENTAGE) " % or " STR(DISCHARGE_SWITCH_OFF_MILLIVOLT) " mV"));
+                    "Configured to set discharge control pin " STR(DISCHARGE_CONTROL_PIN) " to low below " STR(DISCHARGE_SWITCH_OFF_PERCENTAGE) " % or " STR(DISCHARGE_SWITCH_OFF_MILLIVOLT) " mV"));
 
 #if defined(__AVR__)
     if (getVCCVoltageMillivolt() < 4300 || digitalRead(FORCE_LCD_DISPLAY_TIMING_PIN) == LOW) {
@@ -410,6 +416,9 @@ void setup() {
              * This sets the I2C stop condition for the next commands
              */
             int8_t tI2CDeviceAddress = scanForAttachedI2CDevice(&Serial);
+            /*
+             * Handle LCD output
+             */
             if (tI2CDeviceAddress == I2C_SCAN_TIMEOUT) {
                 myLCD.setCursor(0, 2);
                 myLCD.print(F("SDA or SCL at ground"));
@@ -428,13 +437,17 @@ void setup() {
                 // clear LCD line
                 LCDClearLine(2);
                 break;
-            } else {
-#if defined(USE_VOLTAGE_AND_RESISTANCE_MEASUREMENT)
-                MeasureVoltageAndResistance();
-#endif
-                delay(500);
-                TogglePin(LED_BUILTIN);
             }
+
+            /*
+             * If no device found, do voltage and resistance measurement
+             */
+#if defined(USE_VOLTAGE_AND_RESISTANCE_MEASUREMENT)
+            MeasureVoltageAndResistance();
+#endif
+            delay(500);
+            TogglePin(LED_BUILTIN);
+
         } while (true);
     }
     LCDClearLine(3); // Clear data from MeasureVoltageAndResistance()
@@ -458,10 +471,6 @@ void loop() {
 
         // Here, all values for checking are already read in
         checkChargeAndDischargeLimits();
-
-        // clear the display of 'H' for sGlobalI2CReadError
-        myLCD.setCursor(19, 0);
-        myLCD.print(' ');
     } else {
         // Test connection with readWord(). This sets the sGlobalI2CReadError flag accordingly.
         readWord(CYCLE_COUNT);
@@ -484,8 +493,13 @@ void loop() {
         sLastGlobalReadError = sGlobalI2CReadError;
 
         if (sGlobalI2CReadError == 0) {
+            // clear the display of 'H' for sGlobalI2CReadError
+            myLCD.setCursor(19, 0);
+            myLCD.print(' ');
+
             // print info again
             printInitialInfo();
+            sPrintOnlyChanges = true;
         } else {
             // display 'H' for sGlobalI2CReadError
             myLCD.setCursor(19, 0);
@@ -493,7 +507,7 @@ void loop() {
         }
     }
 
-    delay(3000);
+    delay(MILLIS_BETWEEN_READING_FOR_CHANGED_VALUES);
     TogglePin(LED_BUILTIN);
 }
 
@@ -554,6 +568,8 @@ uint8_t scanForAttachedI2CDevice(void) {
 }
 
 void printInitialInfo() {
+    sPrintOnlyChanges = false;
+
     /*
      * The workaround to set __FILE__ with #line __LINE__ "LightToServo.cpp" disables source output including in .lss file (-S option)
      */
@@ -606,6 +622,14 @@ void writeCommandWithRetry(uint8_t aCommand) {
         Wire.write(aCommand);
         sGlobalI2CReadError = Wire.endTransmission(false); // do not send stop, is required for some packs
     }
+#if defined(DEBUG)
+    if(sGlobalI2CReadError) {
+        Serial.print(F("sGlobalI2CReadError="));
+        Serial.print(sGlobalI2CReadError);
+        Serial.print(F(" Command=0x"));
+        Serial.println(aCommand,HEX);
+    }
+#endif
 }
 
 /*
@@ -1371,6 +1395,7 @@ void printSBMNonStandardInfo() {
             uint16_t tCurrentValue1 = readWord(sSBMNonStandardFunctionDescriptionArray[1].FunctionCode);
             if (tCurrentValue == tCurrentValue1) {
                 sNonStandardInfoSupportedByPack = NON_STANDARD_INFO_NOT_SUPPORTED;
+                sGlobalI2CReadError = 0; // Most likely we have read errors here, so reset flag
                 return;
             } else {
                 sNonStandardInfoSupportedByPack = NON_STANDARD_INFO_SUPPORTED;
@@ -1380,7 +1405,7 @@ void printSBMNonStandardInfo() {
         sCellVoltageIsBelowSwitchOffThreshold = false;
         printFunctionDescriptionArray(sSBMNonStandardFunctionDescriptionArray,
                 (sizeof(sSBMNonStandardFunctionDescriptionArray) / sizeof(SBMFunctionDescriptionStruct)));
-        sGlobalI2CReadError = 0; // I have seen some read errors here
+        sGlobalI2CReadError = 0; // I have seen some read errors here, so better reset flag
     }
 }
 
