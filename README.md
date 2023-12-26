@@ -22,6 +22,8 @@ Based on the unmaintained [PackProbe program](https://github.com/PowerCartel/Pac
 
 #### If you find this program useful, please give it a star.
 
+&#x1F30E; [Google Translate](https://translate.google.com/translate?sl=en&u=https://github.com/ArminJo/Smart-Battery-Module-Info_For_Arduino)
+
 <br/>
 
 
@@ -105,7 +107,7 @@ The switch off values can be changed [here](https://github.com/ArminJo/Smart-Bat
 
 <br/>
 
-# Deutsche Documentation
+# Deutsche Dokumentation
 Gibt die Daten des SMB Controllers aus.
 Basiert auf https://github.com/PowerCartel/PackProbe von Power Cartel http://powercartel.com/projects/packprobe/. Hier gibt es auch weitere wertvolle Informationen.
 

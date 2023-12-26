@@ -2,7 +2,7 @@
  *  SBMInfo.ino
  *  Shows Smart Battery Info
  *
- *  If a LiPo supply is detected, the LCD display timing for standalone usage (without serial connection) is activated.
+ *  If a Li-ion supply is detected, the LCD display timing for standalone usage (without serial connection) is activated.
  *
  *  Copyright (C) 2016-2023  Armin Joachimsmeyer
  *  armin.joachimsmeyer@gmail.com
@@ -54,6 +54,9 @@
 #define DISCHARGE_SWITCH_OFF_MILLIVOLT   3300 // to be below the guessed EDV2 value
 bool sCellVoltageIsBelowSwitchOffThreshold;
 void checkChargeAndDischargeLimits();
+
+#define VOLTAGE_USB_LOWER_THRESHOLD_MILLIVOLT   4300   // Assume USB powered, if voltage is higher, PIN_ONLY_PLOTTER_OUTPUT logic is reversed. I.e. plotter output is enabled if NOT connected to ground.
+#define FORCE_LCD_DISPLAY_TIMING_PIN              11 // If pulled to ground and VCC is > 4300 mV, forces slow display timing as used for standalone mode (with Li-ion supply)
 
 #define MILLIS_BETWEEN_READING_FOR_CHANGED_VALUES   3000
 
@@ -123,8 +126,6 @@ LiquidCrystal myLCD(7, 8, 3, 4, 5, 6); // This also clears display
 
 #include "WireUtils.hpp"
 
-#define FORCE_LCD_DISPLAY_TIMING_PIN 11 // if pulled to ground, enables slow display timing as used for standalone mode (with LiPo supply)
-
 /*
  * Version 4.3 - 11/2023
  * - Fixed no voltage measurement bug.
@@ -169,7 +170,7 @@ void prettyPrintlnValueDescription(const __FlashStringHelper *aDescription);
 
 void printHexAndBinary(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint16_t aValue);
 void printlnHex(uint16_t aValue);
-void printSigned(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint16_t aValue);
+void printCycleCount(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint16_t aValue);
 void printCapacity(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint16_t aCapacity);
 void printPercentage(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint16_t aPercentage);
 void printRelativeCharge(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint16_t aPercentage);
@@ -189,6 +190,7 @@ void printFunctionDescriptionArray(struct SBMFunctionDescriptionStruct *aSBMFunc
 void readWordAndPrint(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription);
 void printSBMStaticInfo(void);
 void printSBMManufacturerInfo(void);
+void checkForSBMNonStandardInfoSupported();
 void printSBMNonStandardInfo();
 void printSBMATRateInfo(void);
 
@@ -205,6 +207,18 @@ int readWordFromManufacturerAccess(uint16_t aManufacturerCommand);
 uint8_t readBlock(uint8_t aCommand, uint8_t *aDataBufferPtr, uint8_t aDataBufferLength);
 
 void MeasureVoltageAndResistance();
+
+#define FULL_CHARGE_CAPACITY_LCD_ROW_NON_STANDARD_SUPPORTED         2 // In row 1 we have the non standard info / cell voltages
+#define FULL_CHARGE_CAPACITY_LCD_ROW_NON_STANDARD_NOT_SUPPORTED     1 // Starting with row 0
+#define DESIGN_CAPACITY_LCD_ROW         3 // Starting with row 0
+#define REMAINING_CAPACITY_LCD_ROW      3 // Starting with row 0
+
+#define CURRENT_LCD_ROW                 0 // Starting with row 0
+#define VOLTAGE_LCD_ROW                 0 // Starting with row 0
+#define DESIGN_VOLTAGE_LCD_ROW          3 // Starting with row 0
+#define CELL_VOLTAGE_LCD_ROW            1 // Starting with row 0
+#define ESR_LCD_ROW                     2 // Starting with row 0
+#define REMAINING_TIME_LCD_ROW          2 // Starting with row 0
 
 /*
  * Command definitions
@@ -232,11 +246,11 @@ struct SBMFunctionDescriptionStruct sSBMStaticFunctionDescriptionArray[] = { {
 SERIAL_NUM, Serial_Number, NULL, NULL, 0, 0 }, {
 MFG_DATE, Manufacture_Date, &printManufacturerDate, NULL, 0, 0 }, {
 DESIGN_VOLTAGE, Design_Voltage, &printVoltage, "", 0, 0 }, {
-DESIGN_CAPACITY, Design_Capacity, &printCapacity, "", 0, 0 }, {
+DESIGN_CAPACITY, Design_Capacity, &printCapacity, "", 0, 0 }/* DescriptionLCD must be not NULL */, {
 CHARGING_CURRENT, Charging_Current, &printCurrent, NULL, 0, 0 }, {
 CHARGING_VOLTAGE, Charging_Voltage, &printVoltage, NULL, 0, 0 }, {
 SPEC_INFO, Specification_Info, &printSpecificationInfo, NULL, 0, 0 }, {
-CYCLE_COUNT, Cycle_Count, &printSigned, " cycl.", 0, 0 }, {
+CYCLE_COUNT, Cycle_Count, &printCycleCount, " cycl.", 0, 0 }, {
 MAX_ERROR, Max_Error_of_charge_calculation, &printPercentage, NULL, 0, 0 }, {
 REMAINING_TIME_ALARM, RemainingTimeAlarm, &printTime, NULL, 0, 0 }, {
 REMAINING_CAPACITY_ALARM, Remaining_Capacity_Alarm, &printCapacity, NULL, 0, 0 } };
@@ -274,6 +288,7 @@ BATTERY_STATUS, Battery_Status, &printBatteryStatus, NULL, 0, 0 }, {
 PACK_STATUS, Pack_Status, &printPackStatus, NULL, 0, 0 } };
 
 /*
+ * SBM non standard info
  * These aren't part of the standard, but work with some packs.
  */
 const char Cell_1_Voltage[] PROGMEM = "Cell 1 Voltage";
@@ -282,10 +297,13 @@ const char Cell_3_Voltage[] PROGMEM = "Cell 3 Voltage";
 const char Cell_4_Voltage[] PROGMEM = "Cell 4 Voltage";
 const char State_of_Health[] PROGMEM = "State of Health";
 
-#define NON_STANDARD_INFO_NOT_INTIALIZED    0
+#define NON_STANDARD_INFO_NOT_SUPPORTED     0
 #define NON_STANDARD_INFO_SUPPORTED         1
-#define NON_STANDARD_INFO_NOT_SUPPORTED     2
-int sNonStandardInfoSupportedByPack = NON_STANDARD_INFO_NOT_INTIALIZED;
+#define NON_STANDARD_INFO_UNKNOWN_SUPPORTED 2   // Non standard info is NO cell voltage
+// for plausi check
+#define NON_STANDARD_INFO_CELL_MILLIVOLT_HIGH   5000
+#define NON_STANDARD_INFO_CELL_MILLIVOLT_LOW    3000
+int sNonStandardInfoSupportedByPack;
 struct SBMFunctionDescriptionStruct sSBMNonStandardFunctionDescriptionArray[] = { {
 CELL1_VOLTAGE, Cell_1_Voltage, &printCellVoltage, NULL, VOLTAGE_PRINT_DELTA_MILLIVOLT, 0 }, {
 CELL2_VOLTAGE, Cell_2_Voltage, &printCellVoltage, NULL, VOLTAGE_PRINT_DELTA_MILLIVOLT, 0 }, {
@@ -296,7 +314,7 @@ STATE_OF_HEALTH, State_of_Health, NULL, NULL, 0, 0 } };
 bool sCapacityModePower;                // false = current, true = power
 uint16_t sDesignVoltageMillivolt;       // to retrieve last value for mWh to mA conversion
 uint16_t sDesignCapacity;               // to compute relative capacity percent
-uint16_t sDesignCapacitymAh;            // for LCD output
+uint16_t sDesignCapacityMilliAmpereHour; // for LCD output
 uint16_t sRelativeChargePercent;        // for LCD output of cell voltage instead of time to full or empty
 unsigned long sLastLCDTimePrintMillis;  // for LCD output of cell voltage instead of time to full or empty
 int16_t sCurrentMilliampere;            // to decide if print "time to" values
@@ -304,11 +322,12 @@ uint8_t sGlobalI2CReadError;
 uint8_t sLastGlobalReadError = 0;
 bool sPrintOnlyChanges;                 // Is set to true after the setup / initial print
 uint16_t sLastNoLoadVoltageMillivolt;   // to compute ESR
+uint8_t sNoLoadVoltageMillivoltNotJustWrittenDelay; // 1 => compute ESR, 0 wait for current to be 0. To compute ESR only once but with 1 measurement delay
 
 /*
  * This changes the display behavior to the standalone version.
  */
-bool sVCCisLIPO = false;
+bool sVCCisLIION = false;
 
 /*
  * Value depends on capacity mode
@@ -394,10 +413,10 @@ void setup() {
                     "Configured to set discharge control pin " STR(DISCHARGE_CONTROL_PIN) " to low below " STR(DISCHARGE_SWITCH_OFF_PERCENTAGE) " % or " STR(DISCHARGE_SWITCH_OFF_MILLIVOLT) " mV"));
 
 #if defined(__AVR__)
-    if (getVCCVoltageMillivolt() < 4300 || digitalRead(FORCE_LCD_DISPLAY_TIMING_PIN) == LOW) {
-        sVCCisLIPO = true;
+    if (getVCCVoltageMillivolt() < VOLTAGE_USB_LOWER_THRESHOLD_MILLIVOLT || digitalRead(FORCE_LCD_DISPLAY_TIMING_PIN) == LOW) {
+        sVCCisLIION = true;
     } else {
-        Serial.println(F("No LiPo supply detected -> fast display timing"));
+        Serial.println(F("No Li-ion supply detected -> fast display timing"));
     }
 #endif
 
@@ -579,6 +598,8 @@ void printInitialInfo() {
      */
     readWordAndPrint(&sBatteryModeFuctionDescription);
 
+    checkForSBMNonStandardInfoSupported(); // result affects the LCD row of capacity
+
     Serial.flush(); // in order not to interfere with i2c timing
     printSBMStaticInfo();
 
@@ -595,7 +616,7 @@ void printInitialInfo() {
     printFunctionDescriptionArray(sSBMDynamicFunctionDescriptionArray,
             (sizeof(sSBMDynamicFunctionDescriptionArray) / sizeof(SBMFunctionDescriptionStruct)));
 
-    Serial.println(F("\r\n*** DYNAMIC NON STANDARD INFO ***"));
+    Serial.println(F("\r\n*** DYNAMIC NON STANDARD INFO / Cell Voltages + SOH ***"));
     Serial.flush();
     printSBMNonStandardInfo();
 
@@ -680,9 +701,9 @@ uint8_t readBlock(uint8_t aCommand, uint8_t *aDataBufferPtr, uint8_t aDataBuffer
     uint8_t tLengthOfData = Wire.read();
 
 #if defined(DEBUG)
-Serial.println();
-Serial.print(F("tLengthOfData="));
-Serial.println(tLengthOfData);
+    Serial.println();
+    Serial.print(F("tLengthOfData="));
+    Serial.println(tLengthOfData);
 #endif
     aDataBufferLength = aDataBufferLength - 1; // we read later with tLengthOfData + 1
 
@@ -702,16 +723,17 @@ Serial.println(tLengthOfData);
         writeCommandWithRetry(aCommand);
 
 #if defined(DEBUG)
-    uint8_t tNumberOfDataReceived = Wire.requestFrom(sI2CDeviceAddress, (uint8_t) (tLengthOfData + 1)); // +1 since the length is read again
-    Serial.print(F("tNumberOfDataReceived="));
-    Serial.println(tNumberOfDataReceived);
-    Serial.flush();// required to see complete output in case of crash
+        uint8_t tNumberOfDataReceived = Wire.requestFrom(sI2CDeviceAddress, (uint8_t) (tLengthOfData + 1)); // +1 since the length is read again
+        Serial.print(F("tNumberOfDataReceived="));
+        Serial.println(tNumberOfDataReceived);
+        Serial.flush();// required to see complete output in case of crash
 #else
-        tLengthOfData = Wire.requestFrom(sI2CDeviceAddress, (uint8_t) (tLengthOfData + 1)) - 1; // +1 -1 since the length is read again
+        // request maximum aDataBufferLength + 1 (for length) bytes from device
+        Wire.requestFrom(sI2CDeviceAddress, (uint8_t) (tLengthOfData + 1)); // +1 since the length is read again
 #endif
 
-        Wire.read();
-        Wire.readBytes(aDataBufferPtr, tLengthOfData);
+        Wire.read(); // read length byte
+        Wire.readBytes(aDataBufferPtr, tLengthOfData); // read at maximum aDataBufferLength bytes
     }
     return tLengthOfData;
 }
@@ -817,7 +839,7 @@ void printHexAndBinary(struct SBMFunctionDescriptionStruct *aSBMFunctionDescript
     Serial.print(aValue, BIN);
 }
 
-void printSigned(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint16_t aValue) {
+void printCycleCount(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint16_t aValue) {
     Serial.println((int) aValue);
     if (aSBMFunctionDescription->DescriptionLCD != NULL) {
         myLCD.setCursor(11, 2);
@@ -827,14 +849,13 @@ void printSigned(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, u
 }
 
 void printPercentage(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint16_t aPercentage) {
+    (void) aSBMFunctionDescription;
     Serial.print(aPercentage);
     Serial.print('%');
-    if (aSBMFunctionDescription->DescriptionLCD != NULL) {
-        myLCD.setCursor(0, 2);
-        myLCD.print(aPercentage);
-        myLCD.print('%');
-        myLCD.print(aSBMFunctionDescription->DescriptionLCD);
-    }
+}
+void printRelativeCharge(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint16_t aPercentage) {
+    sRelativeChargePercent = aPercentage;
+    printPercentage(aSBMFunctionDescription, aPercentage);
 }
 
 /*
@@ -857,11 +878,6 @@ void checkChargeAndDischargeLimits() {
 
 }
 
-void printRelativeCharge(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint16_t aPercentage) {
-    sRelativeChargePercent = aPercentage;
-    printPercentage(aSBMFunctionDescription, aPercentage);
-}
-
 const char* getCapacityModeUnit() {
     if (sCapacityModePower) {
         return StringCapacityModePower;
@@ -871,65 +887,91 @@ const char* getCapacityModeUnit() {
 
 /*
  * Prints only mAh on LCD
- * @param aCapacity As mAh or if sCapacityModePower == true, then as mWh
+ * "28% 4400 -> 1247 mAh" on row 1 or 2 depending on sNonStandardInfoSupportedByPack
+ *
+ * @param aCapacity as mAh or if sCapacityModePower == true, then as mWh
+ * !!! Sets sDesignCapacityMilliAmpereHour and sDesignCapacity if called for DESIGN_CAPACITY
  */
 void printCapacity(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint16_t aCapacity) {
+    /*
+     * Print mWh and mAh
+     */
     Serial.print(aCapacity);
     Serial.print(getCapacityModeUnit());
     Serial.print('h');
-    uint16_t tCapacityCurrent = aCapacity;
+    uint16_t tCapacityMilliAmpereHour = aCapacity;
     if (sCapacityModePower) {
         // print also mA since changing capacity mode did not work
         Serial.print(" | ");
-        tCapacityCurrent = (aCapacity * 10000L) / sDesignVoltageMillivolt;
-        Serial.print(tCapacityCurrent);
+        tCapacityMilliAmpereHour = (aCapacity * 10000L) / sDesignVoltageMillivolt;
+        Serial.print(tCapacityMilliAmpereHour);
         Serial.print(StringCapacityModeCurrent);
         Serial.print('h');
     }
+
+    /*
+     * Now print capacity only as mAh, not as mWh
+     */
 
     if (aSBMFunctionDescription->FunctionCode == FULL_CHARGE_CAPACITY) {
         /*
          * print design capacity -> full charge capacity and percent of design capacity
          */
-        myLCD.setCursor(0, 1);
+        if (sNonStandardInfoSupportedByPack != NON_STANDARD_INFO_SUPPORTED) {
+            myLCD.setCursor(0, FULL_CHARGE_CAPACITY_LCD_ROW_NON_STANDARD_NOT_SUPPORTED);
+        } else {
+            myLCD.setCursor(0, FULL_CHARGE_CAPACITY_LCD_ROW_NON_STANDARD_SUPPORTED);
+        }
+
+        // "28% 4400 -> 1247 mAh" on row 1 or 2 depending on sNonStandardInfoSupportedByPack
         uint8_t tPercent = (aCapacity * 100L) / sDesignCapacity;
         myLCD.print(tPercent);
         myLCD.print("% ");
-        myLCD.print(sDesignCapacitymAh);
+        myLCD.print(sDesignCapacityMilliAmpereHour);
         myLCD.print(" -> ");
 //        if (tPercent < 100) {
 //            myLCD.print(' ');
 //        }
-        myLCD.print(tCapacityCurrent);
+        myLCD.print(tCapacityMilliAmpereHour);
         myLCD.print(StringCapacityModeCurrent);
         myLCD.print('h');
 
         Serial.print(" = ");
         Serial.print(tPercent);
         Serial.print('%');
-    } else
+    }
 
-    if (aSBMFunctionDescription->DescriptionLCD != NULL) {
+    else if (aSBMFunctionDescription->DescriptionLCD != NULL) {
+        /*
+         * Only called here with DESIGN_CAPACITY or REMAINING_CAPACITY
+         * "0 mAh 0% remCap     " on row 3
+         * "4400 mAh " on row 3 for first page
+         */
         // always print as mAh with trailing space
-        if (aSBMFunctionDescription->FunctionCode == DESIGN_CAPACITY) {
-            sDesignCapacitymAh = tCapacityCurrent;
-            sDesignCapacity = aCapacity;
-            myLCD.setCursor(11, 3);
+        if (aSBMFunctionDescription->FunctionCode == REMAINING_CAPACITY) {
+            myLCD.setCursor(0, REMAINING_CAPACITY_LCD_ROW);
         } else {
-            // REMAINING_CAPACITY here
-            myLCD.setCursor(0, 3);
+            sDesignCapacityMilliAmpereHour = tCapacityMilliAmpereHour;
+            sDesignCapacity = aCapacity;
+            myLCD.setCursor(11, DESIGN_CAPACITY_LCD_ROW);
         }
+
         uint8_t tCharacterPrinted = 0;
-        tCharacterPrinted += myLCD.print(tCapacityCurrent);
+        tCharacterPrinted += myLCD.print(tCapacityMilliAmpereHour);
         tCharacterPrinted += myLCD.print(StringCapacityModeCurrent) + 1;
         myLCD.print('h');
         if (aSBMFunctionDescription->FunctionCode == REMAINING_CAPACITY) {
             myLCD.print(' ');
             tCharacterPrinted += myLCD.print(sRelativeChargePercent) + 2;
             myLCD.print('%');
+
+            Serial.print(" = ");
+            Serial.print(sRelativeChargePercent);
+            Serial.print('%');
         }
         tCharacterPrinted += myLCD.print(aSBMFunctionDescription->DescriptionLCD);
         if (aSBMFunctionDescription->FunctionCode == REMAINING_CAPACITY) {
+            // clear rest of line
             LCDPrintSpaces(LCD_COLUMNS - tCharacterPrinted);
         }
     }
@@ -943,48 +985,58 @@ void printVoltage(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, 
         if (aSBMFunctionDescription->FunctionCode == DESIGN_VOLTAGE) {
             // store for global use
             sDesignVoltageMillivolt = aVoltageMillivolt;
-            myLCD.setCursor(0, 3);
+            myLCD.setCursor(0, DESIGN_VOLTAGE_LCD_ROW);
         } else /*if (aSBMFunctionDescription->FunctionCode == VOLTAGE)*/{
 //            // Print 8 spaces from 0 to 7
 //            myLCD.setCursor(0, 0);
 //            LCDPrintSpaces(9); // clear old value from 0 to 8 incl. trailing space
             if (sCurrentMilliampere == 0) {
                 sLastNoLoadVoltageMillivolt = aVoltageMillivolt;
+                sNoLoadVoltageMillivoltNotJustWrittenDelay = 3;
             } else {
-                /*
-                 * Compute ESR, resolution is 0.008 ohm
-                 */
-                // first compute integer value
-                int16_t tVoltageDifference = (int16_t) aVoltageMillivolt - (int16_t) sLastNoLoadVoltageMillivolt;
-                float tESROhm = (float) tVoltageDifference / sCurrentMilliampere;
-                // We read voltage before current, so it may become negative if load was detached
-                if (tESROhm > 0) {
+                // do not count below 0
+                if (sNoLoadVoltageMillivoltNotJustWrittenDelay != 0) {
+                    sNoLoadVoltageMillivoltNotJustWrittenDelay--;
+                }
+                if (sNoLoadVoltageMillivoltNotJustWrittenDelay == 1) {
+                    /*
+                     * Compute and print ESR only once, resolution is 0.008 ohm
+                     */
+                    // first compute integer value
+                    int16_t tVoltageDifference = (int16_t) aVoltageMillivolt - (int16_t) sLastNoLoadVoltageMillivolt;
+                    float tESROhm = (float) tVoltageDifference / sCurrentMilliampere;
+                    // We read voltage before current, so it may become negative if load was detached
+                    if (tESROhm > 0) {
 //                Serial.print(F(" | (aVoltageMillivolt="));
 //                Serial.print(aVoltageMillivolt);
 //                Serial.print(F(" - sLastNoLoadVoltageMillivolt="));
 //                Serial.print(sLastNoLoadVoltageMillivolt);
 //                Serial.print(F(") / sCurrentMilliampere = "));
 //                Serial.print(sCurrentMilliampere);
-                    Serial.print(F(" | ESR = "));
-                    Serial.print(tESROhm, 3);
-                    Serial.print(F(" ohm"));
-                    myLCD.setCursor(11, 2);
-                    myLCD.print(' ');
-                    myLCD.print(tESROhm, 3);
-                    myLCD.print(" \xF4 "); // ohm
+                        Serial.print(F(" | ESR = "));
+                        Serial.print(tESROhm, 3);
+                        Serial.print(F(" ohm"));
+                        myLCD.setCursor(12, ESR_LCD_ROW);
+                        myLCD.print(' ');
+                        myLCD.print(tESROhm, 3);
+                        myLCD.print(" \xF4"); // ohm
+                    }
                 }
             }
 
-            myLCD.setCursor(0, 0);
+            myLCD.setCursor(0, VOLTAGE_LCD_ROW);
         }
         myLCD.print((float) aVoltageMillivolt / 1000, 3);
         myLCD.print(" V");
     }
 }
 
+/*
+ * Print Cell voltages at CELL_VOLTAGE_LCD_ROW (1)
+ */
 void printCellVoltage(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uint16_t aVoltage) {
-    // test for sensible value
-    if (aVoltage > 3000 && aVoltage < 5000) {
+// test for sensible value
+    if (NON_STANDARD_INFO_CELL_MILLIVOLT_LOW < aVoltage && aVoltage < NON_STANDARD_INFO_CELL_MILLIVOLT_HIGH) {
         /*
          * Check for discharge switch off. We are called for more than one cell voltage here.
          */
@@ -994,32 +1046,26 @@ void printCellVoltage(struct SBMFunctionDescriptionStruct *aSBMFunctionDescripti
             Serial.println(F("Stop voltage reached -> stop discharge"));
         }
 
-        // cell voltages in row 3. 100 was not reached for a bq2084. Print if time (minutes) is not updated for more than 2 minutes.
+        // cell voltages in row 1. 100 was not reached for a bq2084. Print if time (minutes) is not updated for more than 2 minutes.
         if (!sPrintOnlyChanges || sRelativeChargePercent == 0 || sRelativeChargePercent > 99
                 || millis() - sLastLCDTimePrintMillis > 120000) {
             uint8_t tCellNumber = (aSBMFunctionDescription->FunctionCode - CELL4_VOLTAGE); // 0 to 3 for cell 4 to 1
-            uint8_t tCellIndex = 3 - tCellNumber;
-            if (sDesignVoltageMillivolt < 13000) {
-                // 3 cell voltages
-                myLCD.setCursor(tCellIndex * 7, 2);
-            } else {
-                // 4 cell voltages
-                myLCD.setCursor(tCellIndex * 5, 2);
-            }
-
-            if (sDesignVoltageMillivolt < 13000) {
-                // 3 cell voltages
+            uint8_t tCellIndex = 3 - tCellNumber; // 0 to 3 for cell 1 to 4
+            if (sDesignVoltageMillivolt < 13000 && tCellIndex < 3) { // I have seen one Sony 11V pack where only one voltage was at position CELL4_VOLTAGE
+            // 3 cell voltages, each 6 characters, "3.844V"
+                myLCD.setCursor(tCellIndex * 7, CELL_VOLTAGE_LCD_ROW);
                 myLCD.print((float) aVoltage / 1000, 3);
                 myLCD.print('V');
-                // do not overwrite first character of row 2
-                if (tCellIndex != 2) {
+                // do not overwrite first character of next row 2
+                if (tCellIndex < 2) {
                     myLCD.print(' ');
                 }
             } else {
+                // 4 cell voltages, each 4 characters
+                myLCD.setCursor(tCellIndex * 5, CELL_VOLTAGE_LCD_ROW);
                 myLCD.print((float) aVoltage / 1000, 2);
                 myLCD.print(' ');
             }
-
         }
 
         printVoltage(aSBMFunctionDescription, aVoltage);
@@ -1040,10 +1086,10 @@ void printCurrent(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, 
     Serial.print(" mA");
     if (aSBMFunctionDescription->DescriptionLCD != NULL) {
         // print 7 character from 12 to 18
-        myLCD.setCursor(9, 0);
+        myLCD.setCursor(9, CURRENT_LCD_ROW);
         LCDPrintSpaces(11);
         ; // clear old value from 9 to 19 incl. leading and trailing spaces
-        myLCD.setCursor(11, 0);
+        myLCD.setCursor(11, CURRENT_LCD_ROW);
         sprintf_P(tString, PSTR("%4d"), tCurrent);
         myLCD.print(tString);
         myLCD.print(" mA");
@@ -1075,9 +1121,9 @@ void printTime(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uin
                 if (aMinutes > ((100 * 60) - 1)) {
                     tHour = 99;
                 }
-                myLCD.setCursor(0, 2);
+                myLCD.setCursor(0, REMAINING_TIME_LCD_ROW);
                 LCDPrintSpaces(11);
-                myLCD.setCursor(0, 2);
+                myLCD.setCursor(0, REMAINING_TIME_LCD_ROW);
                 myLCD.print(tHour);
                 myLCD.print(" h ");
             }
@@ -1089,9 +1135,9 @@ void printTime(struct SBMFunctionDescriptionStruct *aSBMFunctionDescription, uin
         Serial.print(" min");
         if (aSBMFunctionDescription->DescriptionLCD != NULL && sCurrentMilliampere != 0) {
             if (tHour == 0) {
-                myLCD.setCursor(0, 2);
+                myLCD.setCursor(0, REMAINING_TIME_LCD_ROW);
                 LCDPrintSpaces(11);
-                myLCD.setCursor(0, 2);
+                myLCD.setCursor(0, REMAINING_TIME_LCD_ROW);
             }
 
             myLCD.print(aMinutes);
@@ -1255,6 +1301,16 @@ void printFunctionDescriptionArray(struct SBMFunctionDescriptionStruct *aSBMFunc
     }
 }
 
+void printI2CDataBuffer(uint8_t aReceivedLength) {
+    Serial.write(sI2CDataBuffer, aReceivedLength);
+    Serial.println();
+    Serial.print(F("0x"));
+    for (int i = 0; i < aReceivedLength; ++i) {
+        Serial.print(sI2CDataBuffer[i], HEX);
+        Serial.print(' ');
+    }
+    Serial.println();
+}
 /*
  * Sometimes charging current and charging voltage are only available if external enable connector is present (or enable pin is tight low)
  */
@@ -1263,8 +1319,7 @@ void printSBMStaticInfo(void) {
 
     prettyPrintDescription(F("Manufacturer Name"));
     tReceivedLength = readBlock(MFG_NAME, sI2CDataBuffer, DATA_BUFFER_LENGTH);
-    Serial.write(sI2CDataBuffer, tReceivedLength);
-    Serial.println();
+    printI2CDataBuffer(tReceivedLength);
 
     myLCD.setCursor(12, 1);
     if (tReceivedLength > 8) {
@@ -1274,27 +1329,20 @@ void printSBMStaticInfo(void) {
 
     prettyPrintDescription(F("Chemistry"));
     tReceivedLength = readBlock(CELL_CHEM, sI2CDataBuffer, DATA_BUFFER_LENGTH);
-    Serial.write(sI2CDataBuffer, tReceivedLength);
-    Serial.println();
+    printI2CDataBuffer(tReceivedLength);
 
     prettyPrintDescription(F("Manufacturer Data"));
     tReceivedLength = readBlock(MANUFACTURER_DATA, sI2CDataBuffer, DATA_BUFFER_LENGTH);
-    Serial.print(F("0x"));
-    for (int i = 0; i < tReceivedLength; ++i) {
-        Serial.print(sI2CDataBuffer[i], HEX);
-        Serial.print(' ');
-    }
-    Serial.println();
+    printI2CDataBuffer(tReceivedLength);
 
     prettyPrintDescription(F("Device Name"));
     tReceivedLength = readBlock(DEV_NAME, sI2CDataBuffer, DATA_BUFFER_LENGTH);
-    Serial.write(sI2CDataBuffer, tReceivedLength);
-    Serial.println();
+    printI2CDataBuffer(tReceivedLength);
 
     printFunctionDescriptionArray(sSBMStaticFunctionDescriptionArray,
             (sizeof(sSBMStaticFunctionDescriptionArray) / sizeof(SBMFunctionDescriptionStruct)));
 
-    if (sVCCisLIPO) {
+    if (sVCCisLIION) {
         delay(5000);
     } else {
         delay(1000);
@@ -1384,24 +1432,36 @@ void printSBMManufacturerInfo(void) {
     }
 }
 
-void printSBMNonStandardInfo() {
-    if (sNonStandardInfoSupportedByPack != NON_STANDARD_INFO_NOT_SUPPORTED && sGlobalI2CReadError == 0) {
-        if (sNonStandardInfoSupportedByPack == NON_STANDARD_INFO_NOT_INTIALIZED) {
-            /*
-             * very simple check if non standard info supported by pack
-             * compare value of CELL1_VOLTAGE and CELL2_VOLTAGE
-             */
-            uint16_t tCurrentValue = readWord(sSBMNonStandardFunctionDescriptionArray[0].FunctionCode);
-            uint16_t tCurrentValue1 = readWord(sSBMNonStandardFunctionDescriptionArray[1].FunctionCode);
-            if (tCurrentValue == tCurrentValue1) {
-                sNonStandardInfoSupportedByPack = NON_STANDARD_INFO_NOT_SUPPORTED;
-                sGlobalI2CReadError = 0; // Most likely we have read errors here, so reset flag
-                return;
-            } else {
-                sNonStandardInfoSupportedByPack = NON_STANDARD_INFO_SUPPORTED;
-            }
-        }
+/*
+ * sets sNonStandardInfoSupportedByPack
+ */
+void checkForSBMNonStandardInfoSupported() {
+    /*
+     * Initialize: Very simple check if non standard info supported by pack
+     * compare value of CELL1_VOLTAGE and CELL2_VOLTAGE and check if CELL1_VOLTAGE is between 3000 and 5000
+     */
+    uint16_t tCurrentValue = readWord(sSBMNonStandardFunctionDescriptionArray[0].FunctionCode);
+    uint16_t tCurrentValue1 = readWord(sSBMNonStandardFunctionDescriptionArray[1].FunctionCode);
+    Serial.print(F("Non standard info is "));
 
+    if (tCurrentValue == tCurrentValue1) {
+        sNonStandardInfoSupportedByPack = NON_STANDARD_INFO_NOT_SUPPORTED;
+        Serial.println(F("not supported"));
+        sGlobalI2CReadError = 0; // Most likely we have read errors here, so reset flag
+    } else if ((tCurrentValue < NON_STANDARD_INFO_CELL_MILLIVOLT_LOW) || (NON_STANDARD_INFO_CELL_MILLIVOLT_HIGH < tCurrentValue)) {
+        sNonStandardInfoSupportedByPack = NON_STANDARD_INFO_UNKNOWN_SUPPORTED;
+        Serial.println(F("supported, but not cell voltages"));
+    } else {
+        sNonStandardInfoSupportedByPack = NON_STANDARD_INFO_SUPPORTED;
+        Serial.println(F("supported"));
+    }
+}
+
+/*
+ * Up to 4 cell voltages + SOH
+ */
+void printSBMNonStandardInfo() {
+    if (sNonStandardInfoSupportedByPack != NON_STANDARD_INFO_NOT_SUPPORTED) {
         sCellVoltageIsBelowSwitchOffThreshold = false;
         printFunctionDescriptionArray(sSBMNonStandardFunctionDescriptionArray,
                 (sizeof(sSBMNonStandardFunctionDescriptionArray) / sizeof(SBMFunctionDescriptionStruct)));
