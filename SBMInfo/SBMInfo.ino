@@ -55,7 +55,6 @@
 bool sCellVoltageIsBelowSwitchOffThreshold;
 void checkChargeAndDischargeLimits();
 
-#define VOLTAGE_USB_LOWER_THRESHOLD_MILLIVOLT   4300   // Assume USB powered, if voltage is higher, PIN_ONLY_PLOTTER_OUTPUT logic is reversed. I.e. plotter output is enabled if NOT connected to ground.
 #define FORCE_LCD_DISPLAY_TIMING_PIN              11 // If pulled to ground and VCC is > 4300 mV, forces slow display timing as used for standalone mode (with Li-ion supply)
 
 #define MILLIS_BETWEEN_READING_FOR_CHANGED_VALUES   3000
@@ -378,7 +377,8 @@ void setup() {
     pinMode(FORCE_LCD_DISPLAY_TIMING_PIN, INPUT_PULLUP);
 
     Serial.begin(115200);
-#if defined(__AVR_ATmega32U4__) || defined(SERIAL_PORT_USBVIRTUAL) || defined(SERIAL_USB) /*stm32duino*/|| defined(USBCON) /*STM32_stm32*/|| defined(SERIALUSB_PID) || defined(ARDUINO_attiny3217)
+#if defined(__AVR_ATmega32U4__) || defined(SERIAL_PORT_USBVIRTUAL) || defined(SERIAL_USB) /*stm32duino*/|| defined(USBCON) /*STM32_stm32*/ \
+    || defined(SERIALUSB_PID)  || defined(ARDUINO_ARCH_RP2040) || defined(ARDUINO_attiny3217)
     delay(4000); // To be able to connect Serial monitor after reset or power up and before first print out. Do not wait for an attached Serial Monitor!
 #endif
     // Just to know which program is running on my Arduino
@@ -413,7 +413,7 @@ void setup() {
                     "Configured to set discharge control pin " STR(DISCHARGE_CONTROL_PIN) " to low below " STR(DISCHARGE_SWITCH_OFF_PERCENTAGE) " % or " STR(DISCHARGE_SWITCH_OFF_MILLIVOLT) " mV"));
 
 #if defined(__AVR__)
-    if (getVCCVoltageMillivolt() < VOLTAGE_USB_LOWER_THRESHOLD_MILLIVOLT || digitalRead(FORCE_LCD_DISPLAY_TIMING_PIN) == LOW) {
+    if (!isVCCUSBPowered() || digitalRead(FORCE_LCD_DISPLAY_TIMING_PIN) == LOW) {
         sVCCisLIION = true;
     } else {
         Serial.println(F("No Li-ion supply detected -> fast display timing"));

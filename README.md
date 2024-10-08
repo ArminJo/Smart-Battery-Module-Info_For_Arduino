@@ -236,11 +236,11 @@ Average minutes remaining until empty: 16 h 11 min
 ![Fritzing schematics](extras/SBMInfo_Schaltplan.png)
 
 # Revision History
-### Version 4.3
+### Version 4.3.0
 - Fixed no voltage measurement bug.
 - Improved print and LCD display after I2C reconnection.
 
-### Version 4.2
+### Version 4.2.0
 - Removed compile time warnings.
 
 ### Version 4.1.0
