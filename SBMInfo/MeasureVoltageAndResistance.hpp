@@ -178,14 +178,14 @@ bool measureResistance(uint16_t aVCCVoltageMillivolt, ResistanceMeasurementResul
      * We must wait for ADC channel to switch from VCC measurement channel to A1 channel
      */
     uint16_t tInputReading = waitAndReadADCChannelWithReference(OHM_CHANNEL, DEFAULT);
-    uint16_t tInputVoltage = (uint32_t) tInputReading * aVCCVoltageMillivolt / 1023;
-    uint16_t tReadingAtVCC = 1023;
+    uint16_t tInputVoltage = (uint32_t) tInputReading * aVCCVoltageMillivolt / READING_FOR_AREF;
+    uint16_t tReadingAtVCCReference = 1023;
     uint32_t tRxOhm;
 
     aResistanceMeasurementResult->isOverflow = false;
     if (tInputVoltage > REFERENCE_SWITCHING_VOLTAGE_THRESHOLD_MILLIVOLT) {
-        if (tReadingAtVCC > tInputReading) {
-            tRxOhm = (RESISTOR_1_TO_VCC_KOHM * 1000L * tInputReading) / (tReadingAtVCC - tInputReading);
+        if (tReadingAtVCCReference > tInputReading) {
+            tRxOhm = (RESISTOR_1_TO_VCC_KOHM * 1000L * tInputReading) / (tReadingAtVCCReference - tInputReading);
             // Here we have a resolution of 160 to 350 ohm at 1 MOhm
             // Clip at 10 MOhm
             if (tRxOhm > 9999999) {
@@ -206,9 +206,9 @@ bool measureResistance(uint16_t aVCCVoltageMillivolt, ResistanceMeasurementResul
         tInputReading = waitAndReadADCChannelWithReference(OHM_CHANNEL, INTERNAL);
 
         // The compensated VCC reading at 1.1 volt reference
-        tReadingAtVCC = (aVCCVoltageMillivolt * 1023L) / 1100;
+        tReadingAtVCCReference = (aVCCVoltageMillivolt * READING_FOR_AREF) / 1100;
 
-        tRxOhm = (RESISTOR_1_TO_VCC_KOHM * 1000L * tInputReading) / (tReadingAtVCC - tInputReading);
+        tRxOhm = (RESISTOR_1_TO_VCC_KOHM * 1000L * tInputReading) / (tReadingAtVCCReference - tInputReading);
 
         /*
          * Formula is: (for 5 V and 1050 mV, in order to get a constant value)
@@ -232,14 +232,14 @@ bool measureResistance(uint16_t aVCCVoltageMillivolt, ResistanceMeasurementResul
             delay(2);
             tInputReading = waitAndReadADCChannelWithReference(OHM_CHANNEL, INTERNAL);
             tRxOhm = (((RESISTOR_1_TO_VCC_KOHM * RESISTOR_2_TO_VCC_KOHM) / (RESISTOR_1_TO_VCC_KOHM + RESISTOR_2_TO_VCC_KOHM))
-                    * 1000L * tInputReading) / (tReadingAtVCC - tInputReading);
+                    * 1000L * tInputReading) / (tReadingAtVCCReference - tInputReading);
             digitalWrite(RESISTOR_3_PIN, LOW);
             pinMode(RESISTOR_3_PIN, INPUT);
         }
         /*
          * Input voltage for 1.1 volt reference
          */
-        tInputVoltage = tInputReading * 1100L / 1023;
+        tInputVoltage = tInputReading * 1100L / READING_FOR_AREF;
     }
 #if defined(DEBUG)
     Serial.print(tInputReading);

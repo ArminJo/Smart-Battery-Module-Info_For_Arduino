@@ -31,9 +31,10 @@
 #define _WIRE_UTILS_HPP
 
 void printWireError(Print *aSerial, uint8_t aWireReturnCode);
-#define I2C_SCAN_NO_DEVICE  -1
-#define I2C_SCAN_TIMEOUT    -5
-int8_t scanForAttachedI2CDevice(Print *aSerial, uint8_t aI2CAddressToStartWith = 0);
+#define I2C_SCAN_NO_DEVICE          -1
+#define I2C_SCAN_TIMEOUT            -5
+#define I2C_SCAN_FIRST_ERROR_CODE   I2C_SCAN_NO_DEVICE
+int8_t scanForAttachedI2CDevice(Print *aSerial, uint8_t aI2CAddressToStartWith = 0, uint8_t aNumberOfAddresseToScan = 0);
 bool checkForAttachedI2CDevice(Print *aSerial, uint8_t aI2CDeviceAddress);
 
 unsigned int sScanCount = 0;
@@ -127,11 +128,12 @@ bool checkForAttachedI2CDevice(Print *aSerial, uint8_t aI2CDeviceAddress) {
 
 /*
  * Scans address 0 to 127
+ * @param aNumberOfAddresseToScan - 0 means scan all I2C addresses
  * @return I2C address from 0 to 127, where transmission was successful
  *         -1, I2C_SCAN_NO_DEVICE
  *         -5, I2C_SCAN_TIMEOUT
  */
-int8_t scanForAttachedI2CDevice(Print *aSerial, uint8_t aI2CAddressToStartWith) {
+int8_t scanForAttachedI2CDevice(Print *aSerial, uint8_t aI2CAddressToStartWith, uint8_t aNumberOfAddresseToScan) {
 // the next 2 statements disable TWI hangup, if SDA and SCL are connected and disconnected from ground.
 #if defined(TWCR)
     TWCR = 0;
@@ -139,8 +141,12 @@ int8_t scanForAttachedI2CDevice(Print *aSerial, uint8_t aI2CAddressToStartWith) 
     Wire.begin();
 
     auto tStartMillis = millis();
+    if (aNumberOfAddresseToScan == 0) {
+        aNumberOfAddresseToScan = 128; // 0 means scan all I2C addresses
+    }
+    uint8_t tI2CAddress = aI2CAddressToStartWith;
     // We cannot use uint_fast8_t here, since it is ambiguous parameter for beginTransmission()  on 16/32 bit CPU
-    for (uint8_t tI2CAddress = aI2CAddressToStartWith; tI2CAddress < 127; tI2CAddress++) {
+    for (uint_fast8_t i = 0; i < aNumberOfAddresseToScan; i++) {
         Wire.beginTransmission(tI2CAddress);
         uint8_t tOK = Wire.endTransmission(true);
         if (tOK == 0) {
@@ -148,6 +154,7 @@ int8_t scanForAttachedI2CDevice(Print *aSerial, uint8_t aI2CAddressToStartWith) 
             aSerial->println(tI2CAddress, HEX);
             return tI2CAddress;
         }
+        tI2CAddress++;
     }
     sScanCount++;
 
@@ -156,7 +163,11 @@ int8_t scanForAttachedI2CDevice(Print *aSerial, uint8_t aI2CAddressToStartWith) 
         return I2C_SCAN_TIMEOUT;
     }
 
-    aSerial->print(F("Scan found no attached I2C device. Count="));
+    aSerial->print(F("Scan of "));
+    aSerial->print(aNumberOfAddresseToScan);
+    aSerial->print(F(" addresses starting at 0x"));
+    aSerial->print(aI2CAddressToStartWith);
+    aSerial->print(F(" found no attached I2C device. Count="));
     aSerial->println(sScanCount);
     return I2C_SCAN_NO_DEVICE;
 }

@@ -26,6 +26,12 @@ Based on the unmaintained [PackProbe program](https://github.com/PowerCartel/Pac
 
 <br/>
 
+# Features
+- Incudes a combined volt / resistance meter, to determine the function of unknown SBM connections.
+- Starts with I2C address scanning.
+- Computing of pack ESR (Equivalent Series Resistor) if current changes from 0 to != 0 e.g. at start to charge or discharge.
+- Activating a discharge MOsFet, as long as voltages are above 3.3 volt per cell.
+- Reconnecting after I2C failure.
 
 # Disclaimer
 **I do not know how to enter full access mode, clear permanent failure or unlock any controller IC.** Unfortunately according to most datasheets, you need an unlock key.
@@ -140,10 +146,10 @@ Sample outputs can be found in folder [extras](https://github.com/ArminJo/Smart-
 
 ```
 START ../src/SBMInfo.cpp
-Version 4.3 from Nov 23 2023
+Version 4.4 from Oct  4 2025
 Configured to set charge control pin 9 to low above 95 %
-Configured to stop discharge control pin 10 to low below 5 % or 3300 mV
-Found attached I2C device at 0xB
+Configured to set discharge control pin 10 to low below 5 % or 3300 mV
+Found attached I2C device at address 0xB
 
 Battery mode                        0x6081 | 0b110000010000001
                                     - Internal Charge Controller Supported
@@ -151,25 +157,26 @@ Battery mode                        0x6081 | 0b110000010000001
                                     - Disable AlarmWarning broadcast to Host and Smart Battery Charger
                                     - Disable broadcasts of ChargingVoltage and ChargingCurrent to Smart Battery Charger
 
-Manufacturer Name                   DP-SDI51
-Chemistry                           LION
-Manufacturer Data                   0x6 7D B B1 67 14 96 D 0 C8 0 A9 2A 
-Device Name                         DAVOS
-Serial number                       55982 | 0xDAAE
+Value1=3687, Value2=3667 - Non standard info is supported
+Manufacturer Name                   SANYO | 0x53 41 4E 59 4F 
+Chemistry                           LION | 0x4C 49 4F 4E
+Manufacturer Data                   W'4=5 | 0x57 7 27 3 34 E 3D E 1F E 35 E 
+Device Name                         M10B1 | 0x4D 31 30 42 31 
+Serial number                       11444 | 0x2CB4
 Manufacture date (YYYY-MM-DD)       2008-5-25
-Design voltage                      10.800 V
-Design capacity                     5100 mAh
-Charging current                    3570 mA
-Charging voltage                    12.600 V
+Design voltage                      14.400 V | 4 cells
+Design capacity                     4400 mAh
+Charging current                    3080 mA
+Charging voltage                    16.800 V
 SBM protocol (Version / Revision)   1.1 with optional PEC support / 1
-Cycle count                         277
+Cycle count                         331
 
 Max error of charge calculation     100%
 Remaining time alarm                10 min
 Remaining capacity alarm            510 mAh
 
 *** MANUFACTURER INFO ***
-Device Type                         0 | 0x0
+Device Type                         1794 | 0x702
 
 *** RATE TEST INFO ***
 Setting AT rate to                  100 mA
@@ -201,31 +208,39 @@ Pack config and status              0x8230 | 0b1000001000110000
                                     - Discharge is qualified for capacity learning
 
 
-*** DYNAMIC NON STANDARD INFO ***
+*** DYNAMIC NON STANDARD INFO / Cell Voltages + SOH ***
 Cell 1 Voltage                      3.826 V
 Cell 2 Voltage                      3.823 V
 Cell 3 Voltage                      3.819 V
 Cell 4 Voltage                      0x0
+State of Health                     5911 | 0x1717
 
 *** CHANGED VALUES ***
 
---- Next values are from another Pack! I connected 22 ohm Resistor -> 699 mA discharging
+--- After onnecting the 100 ohm discharge resistor, ESR is computed!
 
-Voltage                             15.788 V
-Average current of last minute      -187 mA
-Average minutes remaining until empty: 15 h 24 min
-Cell 4 Voltage:                     3.935 V
-Voltage                             15.807 V
+Current                             -147 mA
+Voltage                             14.653 V
+Average current of last minute      -31 mA
+Minutes remaining until empty       1 min
+Average minutes remaining until empty  1 min
+Battery status (BIN)                0x3C0 | 0b1111000000
+                                    - REMAINING_CAPACITY_ALARM
+                                    - REMAINING_TIME_ALARM_FLAG
+                                    80 Initialized
+                                    40 Discharging
+
+Cell 1 Voltage                      3.666 V
+Cell 2 Voltage                      3.646 V
+Cell 3 Voltage                      3.674 V
+Cell 4 Voltage                      3.666 V
+Voltage                             14.650 V | ESR = 0.578 ohm
+Average current of last minute      -78 mA
+Cell 2 Voltage                      3.645 V
+Cell 3 Voltage                      3.673 V
+Average current of last minute      -104 mA
+Voltage                             14.648 V
 Average current of last minute      -120 mA
-Average minutes remaining until empty: 24 h 1 min
-Cell 4 Voltage:                     3.949 V
-Average current of last minute      -77 mA
-Average minutes remaining until empty: 37 h 25 min
-Voltage                             15.714 V
-Current                             -699 mA
-Average current of last minute      -178 mA
-Minutes remaining until empty       4 h 7 min
-Average minutes remaining until empty: 16 h 11 min
 ```
 
 <br/>
@@ -236,6 +251,11 @@ Average minutes remaining until empty: 16 h 11 min
 ![Fritzing schematics](extras/SBMInfo_Schaltplan.png)
 
 # Revision History
+### Version 4.4.0
+- Fixed ESR (Equivalent Series Resistor) computing bug.
+- Fixed I2C global error handling.
+- Improved optional info handling.
+
 ### Version 4.3.0
 - Fixed no voltage measurement bug.
 - Improved print and LCD display after I2C reconnection.
