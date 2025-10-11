@@ -132,7 +132,7 @@ LiquidCrystal myLCD(7, 8, 3, 4, 5, 6); // This also clears display
 #endif
 
 #if defined(USE_VOLTAGE_AND_RESISTANCE_MEASUREMENT) // Available only for some AVR CPU's like ATmega328
-#define NO_PRINT_OF_RESISTOR_MEASURMENT_VOLTAGE
+#define VOLTAGE_RESISTANCE_ROW          3
 // Include it after LCD settings, it requires the macros USE_LCD and USE_2004_LCD to be set
 #include "MeasureVoltageAndResistance.hpp"
 #endif

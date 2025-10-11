@@ -160,7 +160,7 @@ Battery mode                        0x6081 | 0b110000010000001
 Value1=3687, Value2=3667 - Non standard info is supported
 Manufacturer Name                   SANYO | 0x53 41 4E 59 4F 
 Chemistry                           LION | 0x4C 49 4F 4E
-Manufacturer Data                   W'4=5 | 0x57 7 27 3 34 E 3D E 1F E 35 E 
+Manufacturer Data                   W_'_4_=__5_ | 0x57 7 27 3 34 E 3D E 1F E 35 E 
 Device Name                         M10B1 | 0x4D 31 30 42 31 
 Serial number                       11444 | 0x2CB4
 Manufacture date (YYYY-MM-DD)       2008-5-25
